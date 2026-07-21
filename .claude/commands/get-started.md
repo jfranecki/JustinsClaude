@@ -24,6 +24,7 @@ Present this menu (with AskUserQuestion, multiSelect, unless $ARGUMENTS already 
 | Command | What it does | Hard requirements |
 |---|---|---|
 | `onboard` | Deep codebase onboarding briefing for whatever repo a session starts in | none |
+| `bye` | End-of-session close-out: verifies the session's goal landed, audits git state, cleans up merged worktrees/branches | none; `gh` recommended |
 | `review-deep` | Rigorous multi-phase GitHub PR review (spec alignment, conflicts, security) | `gh` authenticated; Atlassian `acli` optional |
 | `pr-autoreview` | Unattended sweep: finds open PRs needing your review in one configured repo, deep-reviews them in parallel worktrees, auto-posts human-voiced reviews | `review-deep` installed, `gh` authed with access to the target repo, a local clone of it, `python3` |
 | `slack-updates` | Read-only spoken-style brief of Slack channels you choose to track | Slack MCP connected, your Slack member ID |
@@ -66,6 +67,7 @@ Use absolute paths everywhere (expand `~` before substitution).
 For each selected command, evaluate its gate. **Required failures block installation of that command** (skip it, explain the fix); optional failures install with a clear warning.
 
 - `onboard` — no gate.
+- `bye` — no gate. Optional: `gh` authenticated — without it, merge confirmation falls back to plain git checks.
 - `review-deep` — required: `gh auth status` logged in. Optional: `acli`/`jira` present (without it, Jira spec-mapping degrades gracefully); each CLONE_ROOTS directory exists.
 - `pr-autoreview` — required: `review-deep` being installed in this same run (or already present in `~/.claude/commands/`); `gh` access to `{{GITHUB_REPO}}`; valid `{{MAIN_CHECKOUT}}`; `python3` present. Also installs both workflow files (Step 5). **Warn explicitly**: this command POSTS REVIEWS to GitHub under their account when run — they should read `commands/pr-autoreview.md` before scheduling it.
 - `slack-updates` — required: Slack MCP tools resolvable via ToolSearch; a plausible `{{SLACK_USER_ID}}`; at least one tracked channel resolved.

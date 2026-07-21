@@ -1,6 +1,6 @@
 # Claude Commands
 
-A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, rigorous PR review (manual and fully automated), a read-only Slack briefing, and three ways to have Claude read its answers aloud.
+A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, and three ways to have Claude read its answers aloud.
 
 The files in `commands/` are **templates** — they contain `{{PLACEHOLDER}}` tokens for everything specific to you (GitHub username, repos, Slack channels, local paths). Nothing here assumes a particular company or codebase. The bundled `/get-started` installer interviews you, verifies your credentials, fills in the templates, and installs working commands into `~/.claude/`.
 
@@ -27,6 +27,10 @@ Newly installed commands are picked up when you start your next Claude Code sess
 ### `/onboard [optional focus]`
 Builds a deep, verified mental model of whatever repo your session is rooted in before you start working: structure and submodules, entry points and execution flow, dependencies and coupling, conventions, tests, CI gates, domain model, and recent direction. Ends with a structured briefing and offers to persist it for future sessions.
 **Needs:** nothing — works in any repo.
+
+### `/bye`
+The end-of-session bookend to `/onboard`: answers **"are we safe to close?"** before you kill the session. Read-only audit first — did the goal actually land, do tests pass, is anything uncommitted or unpushed, is a shared checkout stranded on a feature branch, which session-created worktrees and branches are confirmed-merged and safe to clean, and does any external tracker or doc still reflect reality (merge ≠ deploy). Then one severity-grouped report and a choice: finish the work, housekeep & close, or close anyway — the bypass path writes a handoff note so the next session doesn't start cold. Nothing state-changing runs without approval, and unmerged work is never force-deleted.
+**Needs:** nothing — `gh` recommended for confirming merges (falls back to plain git checks).
 
 ### `/review-deep <PR number | URL>`
 A multi-phase, senior-engineer-grade PR review run locally: fetches PR metadata, the diff, and all existing review threads via `gh`; pulls the linked Jira ticket (via Atlassian `acli`, optional) and maps every acceptance criterion to code; triages "blast radius" so a one-line auth change still gets the deep treatment; walks correctness, semantic conflicts with *other open PRs*, base-branch churn, and a full cross-cutting checklist (security, performance, migrations, compat, observability…). Produces a structured report for you — and only if you explicitly ask it to post, drafts a GitHub comment in a human voice with strict anti-"bot-tell" rules.
