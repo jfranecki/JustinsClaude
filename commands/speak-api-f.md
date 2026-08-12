@@ -146,6 +146,23 @@ Write the fully tagged summary — and **nothing else** (no preamble, no markdow
 
 ### Step 4 — Send to ElevenLabs and play
 
+**Set the Bash tool's `timeout` parameter to `600000` on this call.** This is required, not
+optional. `afplay` blocks for the full length of the audio, so the tool call must outlast
+the read — and the Bash tool defaults to only **120 seconds**. At roughly 15.7 characters
+of tagged text per second of speech, the tiers land like this:
+
+| Tier | Char cap | Audio length | Margin under the 120s default |
+|---|---|---|---|
+| `--brief` | 450 | ~30s | comfortable |
+| `--medium` | 950 | ~60s | comfortable |
+| `--detailed` | 1800 | ~115s | **~5 seconds — razor thin** |
+
+A `--detailed` read sits within a few seconds of the default, so ordinary variance cuts it
+off mid-sentence — and the audio is generated and billed in full before playback truncates,
+so you pay for seconds you never hear. More importantly, if `ABS_MAX_CHARS` or the tier
+caps are ever raised, the default starts silently truncating every long read. `600000` is
+the tool's maximum and covers any ceiling this command could reasonably use.
+
 Run this single bash block exactly as written (it reads the file from Step 3):
 
 ```bash
@@ -202,6 +219,11 @@ if ! file "$OUT" | grep -qiE 'audio|mpeg|mp3'; then
   cat "$OUT" >&2
   exit 1
 fi
+
+# Print the read length before blocking on it. If playback ever is cut short, this line
+# makes it obvious from the transcript (audio longer than the call) instead of looking
+# like a silent failure.
+afinfo "$OUT" 2>/dev/null | grep -i 'estimated duration' || true
 
 afplay "$OUT"
 ```
