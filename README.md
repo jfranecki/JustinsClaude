@@ -1,6 +1,6 @@
 # Claude Commands
 
-A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, and three ways to have Claude read its answers aloud.
+A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, three ways to have Claude read its answers aloud, and a plain-English rewrite powered by a local LLM.
 
 The files in `commands/` are **templates** — they contain `{{PLACEHOLDER}}` tokens for everything specific to you (GitHub username, repos, Slack channels, local paths). Nothing here assumes a particular company or codebase. The bundled `/get-started` installer interviews you, verifies your credentials, fills in the templates, and installs working commands into `~/.claude/`.
 
@@ -18,7 +18,7 @@ Then, inside Claude Code:
 /get-started
 ```
 
-It will ask which commands you want, detect or ask for your details, **verify the required credentials and connections actually work** (GitHub CLI auth, Slack MCP, ElevenLabs key, Kokoro install), and install only the commands that pass. Anything that fails verification is skipped with instructions to fix it — just re-run `/get-started` afterwards; it's idempotent.
+It will ask which commands you want, detect or ask for your details, **verify the required credentials and connections actually work** (GitHub CLI auth, Slack MCP, ElevenLabs key, Kokoro install, ollama daemon), and install only the commands that pass. Anything that fails verification is skipped with instructions to fix it — just re-run `/get-started` afterwards; it's idempotent.
 
 Newly installed commands are picked up when you start your next Claude Code session.
 
@@ -53,6 +53,10 @@ Reads Claude's most recent response aloud using **[Kokoro](https://github.com/he
 Premium narration via **ElevenLabs v3**: summarizes the last response and performs it with expressive inline audio tags (`[wry]`, `[sighs]`, `[short pause]`, `[realization dawning]`…). `-f` defaults to a laid-back Australian female voice, `-m` to a crisp British "Q from James Bond"; pass any personality ("gruff sailor", "deadpan comedian") to recolor the read. Length auto-scales to the response or is forced with a flag, and a hard 1,800-character cap protects your ElevenLabs credits. Voice IDs are one-line changes in each command file.
 **Needs:** `ELEVENLABS_API_KEY` in your shell environment (free tier works), `jq`, macOS (`afplay`).
 
+### `/claudish [optional text]`
+Rewrites Claude's last response — or any text you pass it — into plain English using a **local model via [ollama](https://ollama.com)**: free, private, no API tokens spent, and the text never leaves your machine. Good for turning a dense technical answer into something you can forward to a non-engineer, and a surprisingly sharp check on your own explanations: anything that survives being restated in simple words probably holds up. The rewrite is done entirely by the local model — the command is explicitly forbidden from quietly substituting a Claude-authored one, so if ollama is down you get an error instead of a silent, billed fallback.
+**Needs:** ollama running locally with one model pulled, plus `jq` — a one-time setup, see below.
+
 ## Setting up Kokoro for `/speak`
 
 Kokoro is the only dependency that isn't a one-line install, so it ships with its own runbook: **[`kokoro-setup/KOKORO_SETUP.md`](kokoro-setup/KOKORO_SETUP.md)**, written so an AI agent can execute it for you. The fastest path — open Claude Code (or any coding agent) and say:
@@ -68,12 +72,28 @@ What it does, in short:
 
 macOS is supported out of the box; on Linux you swap two playback commands (`afplay`/`open`) — the runbook points at the exact lines. Once installed, re-run `/get-started` and give it your Kokoro path.
 
+## Setting up ollama for `/claudish`
+
+Like Kokoro, this one ships with its own agent-executable runbook: **[`ollama-setup/OLLAMA_SETUP.md`](ollama-setup/OLLAMA_SETUP.md)**. The fastest path — open Claude Code (or any coding agent) and say:
+
+> Read ollama-setup/OLLAMA_SETUP.md and perform the setup it describes.
+
+What it does, in short:
+
+1. Installs `ollama` and runs it as a background service on `localhost:11434`.
+2. **Measures your hardware and sizes the model to match** — VRAM on an NVIDIA GPU, unified memory on Apple Silicon, system RAM otherwise. It ships a sizing table, real timing benchmarks, and the two traps that catch people out: `-mlx` tags are Apple-Silicon-only, and bigger is not automatically better for a simplification task.
+3. Installs `ollama-setup/claudish.sh` — the wrapper shipped **in this repo** (not part of ollama) that sends the text with a plain-English system prompt, enforces a timeout, and prints a `── model · Ns` footer.
+4. Verifies the result, including an `ollama ps` check that your GPU is genuinely being used rather than silently falling back to CPU.
+
+The script's default model (`gemma3:4b`, 3.3 GB) is chosen to fit a 16 GB laptop. With a 24 GB GPU you can run a 26B-class model and should set `CLAUDISH_KEEP_ALIVE=5m` to keep it resident, which removes the cold-load cost that dominates the wait — the runbook covers both ends.
+
 ## Repo layout
 
 ```
 commands/        command templates with {{PLACEHOLDER}} tokens — installed (filled-in) by /get-started
 workflows/       Workflow-tool scripts used by /pr-autoreview (installed to ~/.claude/workflows)
 kokoro-setup/    agent-executable Kokoro runbook + the speak.py wrapper for /speak
+ollama-setup/    agent-executable ollama runbook + the claudish.sh wrapper for /claudish
 .claude/commands/get-started.md   the installer, available as /get-started when you open Claude Code in this repo
 ```
 
