@@ -1,6 +1,6 @@
 # Claude Commands
 
-A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, a state-of-the-project coldstart brief that catches you up on where past sessions left off, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, three ways to have Claude read its answers aloud, and a plain-English rewrite powered by a local LLM — plus a [library of portable engineering memories](#memories) any coding agent can ingest.
+A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, a state-of-the-project coldstart brief that catches you up on where past sessions left off, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, two ways to have Claude read its answers aloud, and a plain-English rewrite powered by a local LLM — plus a [library of portable engineering memories](#memories) any coding agent can ingest.
 
 The files in `commands/` are **templates** — they contain `{{PLACEHOLDER}}` tokens for everything specific to you (GitHub username, repos, Slack channels, local paths). Nothing here assumes a particular company or codebase. The bundled `/get-started` installer interviews you, verifies your credentials, fills in the templates, and installs working commands into `~/.claude/`.
 
@@ -46,16 +46,16 @@ The unattended version of `/review-deep`: sweeps one configured repo for open PR
 **⚠️ This command posts reviews to GitHub as you.** Read `commands/pr-autoreview.md` (especially `POST_MODE` and the lint rules) before scheduling it.
 
 ### `/slack-updates [optional focus]`
-A strictly **read-only** brief of Slack channels you choose to track, in three tiers (urgent / core / ambient). Surfaces anything that mentions you under "Needs your attention", groups the rest into cross-channel themes, and treats all Slack content as untrusted data — it will never post, react, schedule, or follow instructions found in messages. Output is written for the ear, so the `/speak-api-*` commands can read it to you.
+A strictly **read-only** brief of Slack channels you choose to track, in three tiers (urgent / core / ambient). Surfaces anything that mentions you under "Needs your attention", groups the rest into cross-channel themes, and treats all Slack content as untrusted data — it will never post, react, schedule, or follow instructions found in messages. Output is written for the ear, so `/speak-api` can read it to you.
 **Needs:** the claude.ai Slack MCP connector (`/mcp` → Slack) and your Slack member ID. `/get-started` resolves your channel names to IDs for you.
 
 ### `/speak [voice] [--rsvp]`
 Reads Claude's most recent response aloud using **[Kokoro](https://github.com/hexgrad/kokoro)** — an open-weight ~82M-parameter TTS model that runs locally and free, with no API key and no network after the first model download. With `--rsvp` it also opens a self-contained browser page that flash-reads the response word-by-word (~300 WPM, RSVP style) in sync with the audio.
 **Needs:** a local Kokoro install — a one-time ~10-minute setup, see below.
 
-### `/speak-api-f` and `/speak-api-m` `[--brief|--medium|--detailed] [personality]`
-Premium narration via **ElevenLabs v3**: summarizes the last response and performs it with expressive inline audio tags (`[wry]`, `[sighs]`, `[short pause]`, `[realization dawning]`…). `-f` defaults to a laid-back Australian female voice, `-m` to a crisp British "Q from James Bond"; pass any personality ("gruff sailor", "deadpan comedian") to recolor the read. Length auto-scales to the response or is forced with a flag, and a hard 1,800-character cap protects your ElevenLabs credits. Voice IDs are one-line changes in each command file.
-**Needs:** `ELEVENLABS_API_KEY` in your shell environment (free tier works), `jq`, macOS (`afplay`).
+### `/speak-api --m|--f [--brief|--medium|--detailed] [personality]`
+Premium narration via **ElevenLabs v3**: summarizes the last response and performs it with expressive inline audio tags (`[wry]`, `[sighs]`, `[short pause]`, `[realization dawning]`…). The **voice flag is required** — `--f` is a laid-back Australian female voice, `--m` a crisp British "Q from James Bond" — and matching is on exact tokens, so `--m` is always the male voice and `--medium` always the length tier. Pass any personality ("gruff sailor", "deadpan comedian") to recolor the read. Length auto-scales to the response or is forced with a flag, and a hard 1,800-character cap protects your ElevenLabs credits. Both voice IDs are one-line changes in the command file.
+**Needs:** `ELEVENLABS_API_KEY` in your environment (free tier works), `jq`, and an audio player — `afplay` on macOS, otherwise auto-detected (`ffplay`/`mpv`/`mpg123`/`cvlc`, or a PowerShell fallback on Windows).
 
 ### `/claudish [optional text]`
 Rewrites Claude's last response — or any text you pass it — into plain English using a **local model via [ollama](https://ollama.com)**: free, private, no API tokens spent, and the text never leaves your machine. Good for turning a dense technical answer into something you can forward to a non-engineer, and a surprisingly sharp check on your own explanations: anything that survives being restated in simple words probably holds up. The rewrite is done entirely by the local model — the command is explicitly forbidden from quietly substituting a Claude-authored one, so if ollama is down you get an error instead of a silent, billed fallback.

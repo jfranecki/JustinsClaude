@@ -30,7 +30,7 @@ Present this menu (with AskUserQuestion, multiSelect, unless $ARGUMENTS already 
 | `pr-autoreview` | Unattended sweep: finds open PRs needing your review in one configured repo, deep-reviews them in parallel worktrees, auto-posts human-voiced reviews | `review-deep` installed, `gh` authed with access to the target repo, a local clone of it, `python3` |
 | `slack-updates` | Read-only spoken-style brief of Slack channels you choose to track | Slack MCP connected, your Slack member ID |
 | `speak` | Reads the last response aloud with local Kokoro TTS (free, offline) | local Kokoro install — see `kokoro-setup/KOKORO_SETUP.md` |
-| `speak-api-f` / `speak-api-m` | Reads a summary of the last response aloud via ElevenLabs v3 with expressive audio tags (female AU / male UK default voices) | `ELEVENLABS_API_KEY` env var, `jq`, macOS `afplay` |
+| `speak-api` | Reads a summary of the last response aloud via ElevenLabs v3 with expressive audio tags; a required `--f`/`--m` flag picks the female AU or male UK voice | `ELEVENLABS_API_KEY` env var, `jq`, an audio player (`afplay` on macOS, else `ffplay`/`mpv`/`mpg123`/`cvlc`) |
 | `claudish` | Rewrites the last response into plain English using a local ollama model — free, private, no API tokens | ollama installed and running with one model pulled, `jq` — see `ollama-setup/OLLAMA_SETUP.md` |
 | `memorize` | Generalizes a project memory into this repo's shared `memories/` library — audits coupling, restructures, drafts for review | a local clone of this repo, kept at a stable path (it *is* the library) |
 
@@ -41,12 +41,13 @@ Run in parallel where possible; record every result:
 - `echo $HOME` → **{{HOME}}**
 - `gh auth status` and `gh api user -q .login` → proposed **{{GITHUB_USERNAME}}** (confirm with the user — some people have separate work/personal GitHub accounts; the one that matters is the one with access to the repo they review in)
 - `command -v acli`, `command -v jira`, `command -v python3`, `command -v jq`, `command -v afplay`
-- `test -n "$ELEVENLABS_API_KEY" && echo set || echo missing`
+- `test -n "$ELEVENLABS_API_KEY" && echo set || echo missing` — on Windows also check the persistent user scope, which the current shell may not have inherited: `[Environment]::GetEnvironmentVariable('ELEVENLABS_API_KEY','User')`
+- audio player for `speak-api`: `command -v afplay ffplay mpv mpg123 cvlc` — any one is enough
 - Slack MCP: use ToolSearch with query `select:mcp__claude_ai_Slack__slack_read_channel`. If it resolves, Slack is connected. If not, the fix is: run `/mcp` and connect "claude.ai Slack".
 - Kokoro: check the conventional spots (`~/ToolboxRepos/kokoro`, `~/Tools/kokoro`, `~/kokoro`) for a dir containing both `.venv/bin/python` and `speak.py`.
 - ollama: `command -v ollama`, then probe the daemon with `curl -sS --max-time 5 http://localhost:11434/api/tags` (a running daemon returns JSON containing a `models` array). List what is pulled with `ollama list`.
 - `claudish.sh`: check the conventional spots (`~/ToolboxRepos/claudish/claudish.sh`, `~/.claude/bin/claudish.sh`) for the wrapper script.
-- Platform: the `speak*` commands play audio via `afplay`/`open`, so they are macOS-first. On Linux, warn that `speak.py` and the speak-api bash blocks need their playback commands swapped.
+- Platform: `speak` (Kokoro) plays audio via `afplay`/`open`, so it is macOS-first — on Linux or Windows, warn that `speak.py` needs its playback command swapped. `speak-api` auto-detects a player and needs no changes.
 
 ## Step 3 — Interview for the values
 
@@ -80,7 +81,7 @@ For each selected command, evaluate its gate. **Required failures block installa
 - `pr-autoreview` — required: `review-deep` being installed in this same run (or already present in `~/.claude/commands/`); `gh` access to `{{GITHUB_REPO}}`; valid `{{MAIN_CHECKOUT}}`; `python3` present. Also installs both workflow files (Step 5). **Warn explicitly**: this command POSTS REVIEWS to GitHub under their account when run — they should read `commands/pr-autoreview.md` before scheduling it.
 - `slack-updates` — required: Slack MCP tools resolvable via ToolSearch; a plausible `{{SLACK_USER_ID}}`; at least one tracked channel resolved.
 - `speak` — required: validated `{{KOKORO_DIR}}`; `afplay` present (macOS).
-- `speak-api-f` / `speak-api-m` — required: `ELEVENLABS_API_KEY` set in the shell environment (if missing: add `export ELEVENLABS_API_KEY="sk_..."` to the shell profile — key from elevenlabs.io → Profile → API Key — then open a new terminal); `jq`; `afplay`.
+- `speak-api` — required: `ELEVENLABS_API_KEY` resolvable (key from elevenlabs.io → Profile → API Key; if missing, `export ELEVENLABS_API_KEY="sk_..."` in the shell profile, or on Windows `[Environment]::SetEnvironmentVariable('ELEVENLABS_API_KEY','sk_...','User')`, then start a **new** Claude Code session — a running session keeps its old environment); `jq`; at least one audio player from `afplay`/`ffplay`/`mpv`/`mpg123`/`cvlc`. If the key is only set for the persistent user scope and not yet visible to the running shell, install it but report status as `ready after restart`, not `ready`.
 - `memorize` — required: `<repo>/memories/` exists in the clone (it ships with the repo, so a failure means a broken or partial clone).
 - `claudish` — required: a validated `{{CLAUDISH_SCRIPT}}`; `jq` (the script exits without it); the ollama daemon answering on `/api/tags` (if not: `brew services start ollama`, or `ollama serve`); at least one model pulled — `ollama list` must be non-empty. If the script's default `gemma3:4b` is **not** among the pulled models, still install, but tell the user which model they do have and that they must set `CLAUDISH_MODEL` (shell profile, or the `env` block of `~/.claude/settings.json`) or the command will fail with `model isn't available`. Optional but worth reporting: if they have an NVIDIA GPU with ≥24 GB VRAM, mention they can run a much larger model and should set `CLAUDISH_KEEP_ALIVE=5m`.
 

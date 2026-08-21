@@ -1,10 +1,10 @@
 ---
-description: Summarize the previous response and speak it aloud via ElevenLabs v3 with expressive audio tags. Length auto-scales to the response, or force it with --brief/--medium/--detailed. An optional personality argument shapes the wording and tag choice; defaults to a laid back and friendly Australian girl.
-argument-hint: [--brief|--medium|--detailed] [personality — empty defaults to laid back friendly Australian girl]
+description: Summarize the previous response and speak it aloud via ElevenLabs v3 with expressive audio tags. Requires a voice flag (--m or --f). Length auto-scales to the response, or force it with --brief/--medium/--detailed. An optional personality argument shapes the wording and tag choice.
+argument-hint: --m|--f [--brief|--medium|--detailed] [personality — empty uses the flag's default persona]
 allowed-tools: Write, Bash
 ---
 
-# /speak-api-f — ElevenLabs v3 narration
+# /speak-api — ElevenLabs v3 narration
 
 Speak your **most recent assistant message** aloud through the computer speakers, in the voice of the personality below, using ElevenLabs v3 with expressive audio tags applied inline.
 
@@ -12,22 +12,68 @@ Speak your **most recent assistant message** aloud through the computer speakers
 
 $ARGUMENTS
 
-Parse the arguments as an **optional leading length flag** followed by an **optional personality**:
+Parse the arguments as a **required voice flag**, an **optional length flag**, and an **optional personality** — the two flags may appear in either order, but both must precede the personality text.
 
-- **Length flag** — one of `--brief`, `--medium`, `--detailed` if present (it will be the first token). Strip it before reading the personality. If **no flag** is given, the length is **auto** (Step 1 picks a tier to fit the response). Flags map to the tiers in Step 1.
-- **Personality** — whatever text remains after removing any flag. If that is empty, default to **a laid back, friendly young Australian girl**: warm and unfussed, gently melodic Aussie cadence (soft rising intonation, dropped 'r' sounds), casual Aussie lexicon — *yeah*, *for ya*, *heaps*, *no worries*, *reckon*, *give us a yell*, *she'll be right*, *mate* (sparingly).
+### Voice flag — required
+
+| Flag | Voice | Default persona |
+|---|---|---|
+| `--f` (also `--female`, `-f`) | female, Australian | a laid back, friendly young Australian girl |
+| `--m` (also `--male`, `-m`) | male, British | a young, intelligent, professional British male — "Q" from James Bond |
+
+Match these as **exact tokens** — there is no prefix matching, so `--m` is always the *male voice* and `--medium` is always the *length tier*. They can be combined freely (`/speak-api --m --medium`).
+
+**If no voice flag is present**, reply once with exactly:
+
+`/speak-api needs a voice: --f (female AU) or --m (male UK). Example: /speak-api --m --brief`
+
+…and stop. Do not guess a voice, do not call ElevenLabs, and do not write any file.
+
+### Length flag — optional
+
+One of `--brief`, `--medium`, `--detailed`. If **no length flag** is given, the length is **auto** (Step 1 picks a tier to fit the response). Flags map to the tiers in Step 1.
+
+### Personality — optional
+
+Whatever text remains after removing both flags. If that is empty, use the default persona for the resolved voice flag:
+
+- **`--f` default** — **a laid back, friendly young Australian girl**: warm and unfussed, gently melodic Aussie cadence (soft rising intonation, dropped 'r' sounds), casual Aussie lexicon — *yeah*, *for ya*, *heaps*, *no worries*, *reckon*, *give us a yell*, *she'll be right*, *mate* (sparingly).
+- **`--m` default** — **a young, intelligent, professional British male — think "Q" from James Bond**: crisp received-pronunciation diction, dry wit, understated confidence, brisk-but-measured rhythm, occasional clipped Britishisms like *right then*, *rather*, *do call*, *indeed*.
+
+An explicit personality **overrides** the default persona but never the voice — the flag still decides which vocal cords deliver it. Keep the personality plausible for the chosen voice (see Step 2, point 2).
+
+### Worked parse examples
+
+Strip **every** leading flag before reading the personality — the most common mistake is stripping only the first and leaving the second glued to the personality text.
+
+| Input | Voice | Tier | Personality |
+|---|---|---|---|
+| `--m --medium gruff sailor` | male | medium | `gruff sailor` |
+| `--medium --m gruff sailor` | male | medium | `gruff sailor` |
+| `--f` | female | auto | *(default Aussie girl)* |
+| `--m --brief` | male | brief | *(default "Q")* |
+| `--f deadpan comedian` | female | auto | `deadpan comedian` |
+| `--medium gruff sailor` | — | — | **error: no voice flag** |
+
+Note rows 1–2: `--m` and `--medium` are *both* consumed as flags and neither leaks into the personality.
 
 ## Required setup (one-time)
 
-Export your ElevenLabs API key in `~/.zshrc`:
+Set your ElevenLabs API key — from https://elevenlabs.io → Profile → API Key — as an environment variable Claude Code's shell sessions will inherit:
+
+**macOS / Linux** — add to `~/.zshrc` (or `~/.bashrc`), then `source` it or open a new terminal:
 
 ```sh
-export ELEVENLABS_API_KEY="sk_..."         # from https://elevenlabs.io → Profile → API Key
+export ELEVENLABS_API_KEY="sk_..."
 ```
 
-After editing `~/.zshrc`, either `source ~/.zshrc` or open a new terminal so Claude Code's bash sessions inherit the value. The voice ID is hardcoded in the bash block below — change that one line if you ever want to swap voices.
+**Windows** — set it as a persistent user variable, then start a **new** Claude Code session (already-running sessions keep their old environment):
 
-Also requires `jq` (`brew install jq` if missing). `afplay` is built into macOS.
+```powershell
+[Environment]::SetEnvironmentVariable('ELEVENLABS_API_KEY', 'sk_...', 'User')
+```
+
+Also requires **`jq`** (`brew install jq` · `apt install jq` · `winget install jqlang.jq`) and an **audio player** — `afplay` is built into macOS; elsewhere the Step 4 block auto-detects `ffplay`, `mpv`, `mpg123`, or `cvlc`, and falls back to PowerShell on Windows. The two voice IDs are set in the bash block below — change those lines to swap voices.
 
 ---
 
@@ -35,14 +81,14 @@ Also requires `jq` (`brew install jq` if missing). `afplay` is built into macOS.
 
 ### Step 1 — Compose the spoken text
 
-Recall your **most recent assistant message** in this conversation (the turn immediately before `/speak-api-f` was invoked). Recast it as conversational spoken text **in the voice of the personality**. **How long it runs is set by the length tier** resolved from the arguments:
+Recall your **most recent assistant message** in this conversation (the turn immediately before `/speak-api` was invoked). Recast it as conversational spoken text **in the voice of the personality**. **How long it runs is set by the length tier** resolved from the arguments:
 
 | Tier | Selected by | Target | Hard char ceiling* |
 |---|---|---|---|
 | **brief** | `--brief` | 2–4 sentences | 450 |
 | **medium** | `--medium` | 5–9 sentences | 950 |
 | **detailed** | `--detailed` | 10–16 sentences | 1800 |
-| **auto** | *no flag (default)* | scales to the source — see below | 1800 |
+| **auto** | *no length flag (default)* | scales to the source — see below | 1800 |
 
 \*The ceiling is measured on the **final tagged text** (audio tags included — ElevenLabs bills per character).
 
@@ -56,7 +102,7 @@ Rules:
 - **Respect the ceiling.** If the source has more worthwhile points than fit under the tier's char ceiling, keep the highest-value ones and add a brief "there's more if you want it" rather than overflow. The bash block in Step 4 will refuse to send anything over 1800 chars.
 - If the previous response was already a single conversational sentence, lightly re-cast it in the personality (brief) regardless of tier — don't pad it out.
 
-If there is no prior assistant message (this is the first turn), reply once with `Nothing to speak yet — invoke /speak-api-f after I've responded.` and stop.
+If there is no prior assistant message (this is the first turn), reply once with `Nothing to speak yet — invoke /speak-api after I've responded.` and stop.
 
 ### Step 2 — Apply ElevenLabs v3 audio tags
 
@@ -65,7 +111,7 @@ Audio tags are the heart of an expressive v3 read — **lean on them heavily.** 
 **How v3 actually reads tags — three things decide whether a tag lands:**
 
 1. **The vocabulary is open, not a fixed list.** v3 *interprets* the words inside `[...]` as stage directions and performs them — the bracket text is never spoken aloud. So the palette below is a launch pad, not a whitelist: if you can describe a delivery in two or three words, you can tag it — `[muttering under their breath]`, `[barely holding back a grin]`, `[suddenly serious]`, `[warming to the idea]` all work. Invent apt tags freely.
-2. **Tags are voice-dependent — keep them in the persona's lane.** ElevenLabs' own guidance: *"some tags work well with certain voices while others may not,"* and the voice you pick matters more than any tag. A dry, crisp voice can `[wry]`, `[clipped]`, `[amused]`, `[conspiratorial]`; it will *not* convincingly `[sobbing]` or `[manic screaming]`. Choose tags the chosen voice would actually produce, and don't whiplash between registers unless the content truly turns.
+2. **Tags are voice-dependent — keep them in the persona's lane.** ElevenLabs' own guidance: *"some tags work well with certain voices while others may not,"* and the voice you pick matters more than any tag. A dry, crisp voice can `[wry]`, `[clipped]`, `[amused]`, `[conspiratorial]`; it will *not* convincingly `[sobbing]` or `[manic screaming]`. Choose tags the chosen voice would actually produce, and don't whiplash between registers unless the content truly turns. This applies doubly here: the `--m` and `--f` voices have different ranges, so tag for the one the flag selected.
 3. **Stability sets how hard tags hit.** This script sends `stability: 0.0` = **Creative** — the most expressive setting, so tags land hard and emotion swings wide (occasionally at the cost of slight voice drift). `0.5` = **Natural** reins that in, holding the voice's identity more tightly while still performing the cues. `1.0` = **Robust** is the steadiest read but the *least responsive to tags* — never use it when tags are the point. Creative is the default here because expressive tagging is the whole point of this command; if a particular voice drifts too much, nudge the one `stability:` line in Step 4 up toward Natural.
 
    v3 is also most consistent on prompts longer than **~250 characters**; very short briefs read flatter and skip tags more often — an accepted trade for speed, but a reason not to over-trim.
@@ -136,20 +182,32 @@ Audio tags are the heart of an expressive v3 read — **lean on them heavily.** 
 
 > [deadpan][flatly] Great news. [short pause] I did the thing. [dry] [wry laugh] It worked. [beat] [skeptical] Probably.
 
-**"laid back friendly Australian girl" (the default):**
+**`--f` default — "laid back friendly Australian girl":**
 
 > [cheerful][relaxed] Yeah, so — got that all sorted for ya. [giggles] [short pause] Honestly came together HEAPS cleaner than I reckoned… [content] everything's hooked up beautiful. [warmly] Just give us a yell if you wanna tweak anything, ay.
 
+**`--m` default — "Q from James Bond":**
+
+> [confident][measured] Right then. The kit's wired and humming along nicely. [short pause] [softly] Cleaner integration than I'd anticipated, in fact — [wry] rather pleased with it. [knowingly] Do call if anything wants tweaking. [amused] Mm.
+
 ### Step 3 — Write the tagged summary to disk
 
-Write the fully tagged summary — and **nothing else** (no preamble, no markdown, no surrounding quotes) — to `/tmp/claude_speak_api_input.txt` using the **Write** tool.
+Write the fully tagged summary — and **nothing else** (no preamble, no markdown, no surrounding quotes) — to the temp file below using the **Write** tool. The Write tool needs a **platform-absolute** path:
+
+| Platform | Path to write |
+|---|---|
+| macOS / Linux | `/tmp/claude_speak_api_input.txt` |
+| Windows | `%LOCALAPPDATA%\Temp\claude_speak_api_input.txt` — expand it, e.g. `C:\Users\<you>\AppData\Local\Temp\claude_speak_api_input.txt` |
+
+On Windows that path is the *same file* Git Bash sees as `/tmp/claude_speak_api_input.txt` (confirm with `cygpath -w /tmp` if your setup differs). Step 4 resolves it either way.
 
 ### Step 4 — Send to ElevenLabs and play
 
 **Set the Bash tool's `timeout` parameter to `600000` on this call.** This is required, not
-optional. `afplay` blocks for the full length of the audio, so the tool call must outlast
-the read — and the Bash tool defaults to only **120 seconds**. At roughly 15.7 characters
-of tagged text per second of speech, the tiers land like this:
+optional. Every player in the fallback chain below blocks for the full length of the audio
+— `afplay`, `ffplay`, `mpv`, `mpg123`, `cvlc`, and the PowerShell fallback all wait out the
+read — so the tool call must outlast it, and the Bash tool defaults to only **120 seconds**.
+At roughly 15.7 characters of tagged text per second of speech, the tiers land like this:
 
 | Tier | Char cap | Audio length | Margin under the 120s default |
 |---|---|---|---|
@@ -163,21 +221,36 @@ so you pay for seconds you never hear. More importantly, if `ABS_MAX_CHARS` or t
 caps are ever raised, the default starts silently truncating every long read. `600000` is
 the tool's maximum and covers any ceiling this command could reasonably use.
 
-Run this single bash block exactly as written (it reads the file from Step 3):
+Replace `UNSET` on the marked `VOICE=` line with `f` or `m` to match the flag resolved in Step 1, then run the block as written. There is deliberately **no default** — left as `UNSET` the block aborts rather than guessing a voice:
 
 ```bash
 set -euo pipefail
 
-: "${ELEVENLABS_API_KEY:?ELEVENLABS_API_KEY is not set. Add 'export ELEVENLABS_API_KEY=sk_...' to ~/.zshrc and source it.}"
-command -v jq >/dev/null || { echo "jq is required — install with: brew install jq" >&2; exit 1; }
+# ── Replace UNSET with f or m to match the flag from Step 1 ─────────────
+VOICE=UNSET
+# ── Left as UNSET this block aborts by design — never guess a voice. ────
+# Voice IDs — change these to swap voices (browse: https://elevenlabs.io/app/voice-library).
+VOICE_ID_F="u8ADrbquiJqufR9XMtb8"   # laid back friendly Australian girl
+VOICE_ID_M="lF0PpOQjCl3K89rt0U83"   # young professional British male ("Q")
 
-# Voice ID — change this single line to swap voices (browse: https://elevenlabs.io/app/voice-library).
-VOICE_ID="u8ADrbquiJqufR9XMtb8"
+case "$VOICE" in
+  f) VOICE_ID="$VOICE_ID_F" ;;
+  m) VOICE_ID="$VOICE_ID_M" ;;
+  *) echo "VOICE must be 'f' or 'm' (got '$VOICE')." >&2; exit 1 ;;
+esac
 
+: "${ELEVENLABS_API_KEY:?ELEVENLABS_API_KEY is not set — see 'Required setup' in this command. On Windows, set it for the User scope and start a NEW Claude Code session.}"
+command -v jq >/dev/null || { echo "jq is required — brew install jq / apt install jq / winget install jqlang.jq" >&2; exit 1; }
+
+# Resolve the input file written in Step 3 (Windows temp differs from /tmp on some setups).
 IN=/tmp/claude_speak_api_input.txt
-OUT=/tmp/claude_speak_api_output.mp3
+if [ ! -s "$IN" ] && [ -n "${LOCALAPPDATA:-}" ]; then
+  ALT="$(cygpath -u "$LOCALAPPDATA" 2>/dev/null || echo "")/Temp/claude_speak_api_input.txt"
+  if [ -s "$ALT" ]; then IN="$ALT"; fi
+fi
+OUT="$(dirname "$IN")/claude_speak_api_output.mp3"
 
-[ -s "$IN" ] || { echo "Input file $IN is empty or missing." >&2; exit 1; }
+[ -s "$IN" ] || { echo "Input file $IN is empty or missing — did Step 3 write it?" >&2; exit 1; }
 
 # Hard credit backstop — ElevenLabs bills per character (audio tags count too).
 # Refuse to send anything longer than the detailed-tier ceiling, regardless of tier.
@@ -222,12 +295,36 @@ fi
 
 # Print the read length before blocking on it. If playback ever is cut short, this line
 # makes it obvious from the transcript (audio longer than the call) instead of looking
-# like a silent failure.
-afinfo "$OUT" 2>/dev/null | grep -i 'estimated duration' || true
+# like a silent failure. Non-fatal on any platform that has neither tool.
+afinfo "$OUT" 2>/dev/null | grep -i 'estimated duration' \
+  || ffprobe -v error -show_entries format=duration -of default=nw=1 "$OUT" 2>/dev/null \
+  || true
 
-afplay "$OUT"
+# Play it — first available player wins (macOS → cross-platform → Windows fallback).
+if command -v afplay >/dev/null 2>&1; then
+  afplay "$OUT"
+elif command -v ffplay >/dev/null 2>&1; then
+  ffplay -nodisp -autoexit -loglevel error "$OUT"
+elif command -v mpv >/dev/null 2>&1; then
+  mpv --really-quiet --no-video "$OUT"
+elif command -v mpg123 >/dev/null 2>&1; then
+  mpg123 -q "$OUT"
+elif command -v cvlc >/dev/null 2>&1; then
+  cvlc --play-and-exit --intf dummy "$OUT" >/dev/null 2>&1
+elif command -v powershell.exe >/dev/null 2>&1; then
+  WIN_OUT="$(cygpath -w "$OUT" 2>/dev/null || echo "$OUT")"
+  powershell.exe -NoProfile -Command "
+    Add-Type -AssemblyName presentationCore
+    \$p = New-Object System.Windows.Media.MediaPlayer
+    \$p.Open([uri]'$WIN_OUT'); Start-Sleep -Milliseconds 700
+    \$d = \$p.NaturalDuration; if (\$d.HasTimeSpan) { \$p.Play(); Start-Sleep -Seconds ([int]\$d.TimeSpan.TotalSeconds + 1) }
+    \$p.Close()"
+else
+  echo "No audio player found. Install ffmpeg (ffplay), mpv, or mpg123. Audio saved at: $OUT" >&2
+  exit 1
+fi
 ```
 
 ### Step 5 — Confirm
 
-After `afplay` returns, reply with **one short line** confirming playback and naming the personality voice **and the length tier** used (e.g. `Spoken as: laid back friendly girl · auto→medium.` or `Spoken as: gruff sailor · brief.`). Do **not** re-display the summary or the tagged text — the user heard it.
+After playback returns, reply with **one short line** confirming playback and naming the personality voice **and the length tier** used (e.g. `Spoken as: Q from James Bond · auto→medium.` or `Spoken as: laid back friendly girl · brief.`). Do **not** re-display the summary or the tagged text — the user heard it.

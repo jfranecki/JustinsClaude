@@ -6,7 +6,7 @@ allowed-tools: Bash(date:*), ToolSearch, mcp__claude_ai_Slack__slack_search_chan
 
 # /slack-updates — read-only org Slack brief
 
-Catch the user up on what the organization is communicating in the tracked Slack channels. Produce one organized, human-readable brief as the **final message of the turn**, after all tool calls — the /speak-api-f and /speak-api-m commands ingest that message directly.
+Catch the user up on what the organization is communicating in the tracked Slack channels. Produce one organized, human-readable brief as the **final message of the turn**, after all tool calls — the /speak-api command ingests that message directly.
 
 Optional focus from the user (may be empty): **$ARGUMENTS**
 
@@ -56,7 +56,7 @@ If an ID returns `channel_not_found`, re-resolve the name with `slack_search_cha
 
 ## Output format — written to be spoken
 
-The /speak-api commands summarize this message and read it aloud, so write for the ear:
+The /speak-api command summarizes this message and reads it aloud, so write for the ear:
 
 - Complete, conversational sentences. No tables, no code blocks, no raw URLs, no raw timestamps, no IDs.
 - Natural time references ("this morning", "yesterday afternoon", "Friday"). People by first name, full name on first mention if ambiguous. Reference PRs and tickets as plain words ("PR 1515", "the hotfix from Tuesday").
