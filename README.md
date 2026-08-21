@@ -1,6 +1,6 @@
 # Claude Commands
 
-A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, three ways to have Claude read its answers aloud, and a plain-English rewrite powered by a local LLM — plus a [library of portable engineering memories](#memories) any coding agent can ingest.
+A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, a state-of-the-project coldstart brief that catches you up on where past sessions left off, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, three ways to have Claude read its answers aloud, and a plain-English rewrite powered by a local LLM — plus a [library of portable engineering memories](#memories) any coding agent can ingest.
 
 The files in `commands/` are **templates** — they contain `{{PLACEHOLDER}}` tokens for everything specific to you (GitHub username, repos, Slack channels, local paths). Nothing here assumes a particular company or codebase. The bundled `/get-started` installer interviews you, verifies your credentials, fills in the templates, and installs working commands into `~/.claude/`.
 
@@ -27,6 +27,10 @@ Newly installed commands are picked up when you start your next Claude Code sess
 ### `/onboard [optional focus]`
 Builds a deep, verified mental model of whatever repo your session is rooted in before you start working: structure and submodules, entry points and execution flow, dependencies and coupling, conventions, tests, CI gates, domain model, and recent direction. Ends with a structured briefing and offers to persist it for future sessions.
 **Needs:** nothing — works in any repo.
+
+### `/coldstart`
+Full situational awareness when you start a fresh session in a project with history: a codebase discovery pass (structure, manifests, recent git activity) combined with a review of your most recent Claude Code session transcripts for that directory — what was being worked on, decisions made and why, open threads, anything explicitly deferred. Transcript findings are cross-referenced against `git log`, so work that was discussed but never committed gets flagged as in-progress or abandoned instead of assumed done. Ends with a terse state-of-the-project brief — current focus, recent decisions, open threads, known landmines — and asks what you want to pick up. Where `/onboard` builds a mental model of the code, `/coldstart` reconstructs the story so far; extraction is defensive and reads only your own local `~/.claude/projects/` history.
+**Needs:** `jq`.
 
 ### `/bye`
 The end-of-session bookend to `/onboard`: answers **"are we safe to close?"** before you kill the session. Read-only audit first — did the goal actually land, do tests pass, is anything uncommitted or unpushed, is a shared checkout stranded on a feature branch, which session-created worktrees and branches are confirmed-merged and safe to clean, and does any external tracker or doc still reflect reality (merge ≠ deploy). Then one severity-grouped report and a choice: finish the work, housekeep & close, or close anyway — the bypass path writes a handoff note so the next session doesn't start cold. Nothing state-changing runs without approval, and unmerged work is never force-deleted.
