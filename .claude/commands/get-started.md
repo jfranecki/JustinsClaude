@@ -31,6 +31,7 @@ Present this menu (with AskUserQuestion, multiSelect, unless $ARGUMENTS already 
 | `speak` | Reads the last response aloud with local Kokoro TTS (free, offline) | local Kokoro install — see `kokoro-setup/KOKORO_SETUP.md` |
 | `speak-api-f` / `speak-api-m` | Reads a summary of the last response aloud via ElevenLabs v3 with expressive audio tags (female AU / male UK default voices) | `ELEVENLABS_API_KEY` env var, `jq`, macOS `afplay` |
 | `claudish` | Rewrites the last response into plain English using a local ollama model — free, private, no API tokens | ollama installed and running with one model pulled, `jq` — see `ollama-setup/OLLAMA_SETUP.md` |
+| `memorize` | Generalizes a project memory into this repo's shared `memories/` library — audits coupling, restructures, drafts for review | a local clone of this repo, kept at a stable path (it *is* the library) |
 
 ## Step 2 — Detect the environment (batch these)
 
@@ -63,6 +64,7 @@ Only ask for what the selected commands actually need. The full placeholder map:
 | `{{SLACK_CHANNELS_TABLE}}` | slack-updates | ask which channels to track and at which tier (`urgent` / `core` / `ambient`). If Slack MCP is connected, resolve each name to its ID with `slack_search_channels` yourself; otherwise ask the user for IDs (channel → ⋮ → copy link; the ID is the `C…` segment). Render as markdown table rows: `\| urgent \| #incidents \| C0XXXXXXX \|` — one line per channel, no header (the template provides it). |
 | `{{KOKORO_DIR}}` | speak | detected candidate or ask. Validate `<dir>/.venv/bin/python` and `<dir>/speak.py` both exist. If Kokoro isn't installed and they want `/speak`, offer two paths: (a) you perform the setup now by following `kokoro-setup/KOKORO_SETUP.md` in this repo, or (b) they do it later and re-run `/get-started`. |
 | `{{CLAUDISH_SCRIPT}}` | claudish | detected candidate or ask: the absolute path to `claudish.sh` (shipped in `ollama-setup/`). Validate the file exists and `bash -n <path>` parses. If ollama isn't set up and they want `/claudish`, offer two paths: (a) you perform the setup now by following `ollama-setup/OLLAMA_SETUP.md` in this repo — it measures their hardware (GPU VRAM / unified memory / RAM) and sizes the model to match, which matters a lot here — or (b) they do it later and re-run `/get-started`. |
+| `{{MEMORIES_REPO}}` | memorize | detected, never ask: the repo root resolved in Step 0. Confirm with the user that their clone will stay at this path — `/memorize` writes drafts into it, so if the clone moves they must re-run `/get-started`. |
 
 Use absolute paths everywhere (expand `~` before substitution).
 
@@ -77,6 +79,7 @@ For each selected command, evaluate its gate. **Required failures block installa
 - `slack-updates` — required: Slack MCP tools resolvable via ToolSearch; a plausible `{{SLACK_USER_ID}}`; at least one tracked channel resolved.
 - `speak` — required: validated `{{KOKORO_DIR}}`; `afplay` present (macOS).
 - `speak-api-f` / `speak-api-m` — required: `ELEVENLABS_API_KEY` set in the shell environment (if missing: add `export ELEVENLABS_API_KEY="sk_..."` to the shell profile — key from elevenlabs.io → Profile → API Key — then open a new terminal); `jq`; `afplay`.
+- `memorize` — required: `<repo>/memories/` exists in the clone (it ships with the repo, so a failure means a broken or partial clone).
 - `claudish` — required: a validated `{{CLAUDISH_SCRIPT}}`; `jq` (the script exits without it); the ollama daemon answering on `/api/tags` (if not: `brew services start ollama`, or `ollama serve`); at least one model pulled — `ollama list` must be non-empty. If the script's default `gemma3:4b` is **not** among the pulled models, still install, but tell the user which model they do have and that they must set `CLAUDISH_MODEL` (shell profile, or the `env` block of `~/.claude/settings.json`) or the command will fail with `model isn't available`. Optional but worth reporting: if they have an NVIDIA GPU with ≥24 GB VRAM, mention they can run a much larger model and should set `CLAUDISH_KEEP_ALIVE=5m`.
 
 ## Step 5 — Install

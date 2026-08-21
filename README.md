@@ -1,6 +1,6 @@
 # Claude Commands
 
-A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, three ways to have Claude read its answers aloud, and a plain-English rewrite powered by a local LLM.
+A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, three ways to have Claude read its answers aloud, and a plain-English rewrite powered by a local LLM — plus a [library of portable engineering memories](#memories) any coding agent can ingest.
 
 The files in `commands/` are **templates** — they contain `{{PLACEHOLDER}}` tokens for everything specific to you (GitHub username, repos, Slack channels, local paths). Nothing here assumes a particular company or codebase. The bundled `/get-started` installer interviews you, verifies your credentials, fills in the templates, and installs working commands into `~/.claude/`.
 
@@ -57,6 +57,24 @@ Premium narration via **ElevenLabs v3**: summarizes the last response and perfor
 Rewrites Claude's last response — or any text you pass it — into plain English using a **local model via [ollama](https://ollama.com)**: free, private, no API tokens spent, and the text never leaves your machine. Good for turning a dense technical answer into something you can forward to a non-engineer, and a surprisingly sharp check on your own explanations: anything that survives being restated in simple words probably holds up. The rewrite is done entirely by the local model — the command is explicitly forbidden from quietly substituting a Claude-authored one, so if ollama is down you get an error instead of a silent, billed fallback.
 **Needs:** ollama running locally with one model pulled, plus `jq` — a one-time setup, see below.
 
+### `/memorize [path to a project memory]`
+Feeds the [memories library](#memories): point it at a raw project memory (or let it list the current project's memories) and it audits every hard-coded path, name, date, and dead link, extracts the portable engineering truth, restructures it into the library's Context/Trigger → Core Rule → Expected Outcome shape, and drafts it into `memories/` — showing you the coupling audit and full draft for approval before anything is written. If a memory has no portable core, it says so and stops rather than forcing a hollow generalization.
+**Needs:** a local clone of this repo (it *is* the library).
+
+## Memories
+
+`memories/` is a library of **generalized, loosely coupled memories** — engineering truths, architectural patterns, and debugging lessons distilled from real project memories with everything project-specific removed: no local paths, no project or personal names, no dates or session IDs, no links to memories you don't have. Local specifics become `[BRACKET_PLACEHOLDERS]` that the ingesting agent fills from *your* project's context. Each file uses a standard shape — frontmatter for machine ingestion, then **Context / Trigger**, **Core Rule / Insight**, **Expected Outcome** — so any developer or coding agent can drop one straight into their own memory ecosystem.
+
+To use one: clone this repo, then point your coding agent (Claude Code, Codex, Grok, …) at a memory and say one of:
+
+> Install `memories/<name>.md` at the user level.
+
+> Install `memories/<name>.md` in this project.
+
+> Install `memories/<name>.md` for `/path/to/project`.
+
+Agent-executable install instructions (per level, per agent) and the full decoupling standard live in [`memories/README.md`](memories/README.md); the file shape is [`memories/TEMPLATE.md`](memories/TEMPLATE.md). New memories are added with `/memorize`, which enforces the standard for you.
+
 ## Setting up Kokoro for `/speak`
 
 Kokoro is the only dependency that isn't a one-line install, so it ships with its own runbook: **[`kokoro-setup/KOKORO_SETUP.md`](kokoro-setup/KOKORO_SETUP.md)**, written so an AI agent can execute it for you. The fastest path — open Claude Code (or any coding agent) and say:
@@ -91,6 +109,7 @@ The script's default model (`gemma3:4b`, 3.3 GB) is chosen to fit a 16 GB laptop
 
 ```
 commands/        command templates with {{PLACEHOLDER}} tokens — installed (filled-in) by /get-started
+memories/        portable, loosely coupled memories any coding agent can ingest — see memories/README.md
 workflows/       Workflow-tool scripts used by /pr-autoreview (installed to ~/.claude/workflows)
 kokoro-setup/    agent-executable Kokoro runbook + the speak.py wrapper for /speak
 ollama-setup/    agent-executable ollama runbook + the claudish.sh wrapper for /claudish
