@@ -18,7 +18,7 @@ Then, inside Claude Code:
 /get-started
 ```
 
-It will ask which commands you want, detect or ask for your details, **verify the required credentials and connections actually work** (GitHub CLI auth, Slack MCP, ElevenLabs key, Kokoro install, ollama daemon), and install only the commands that pass. Anything that fails verification is skipped with instructions to fix it — just re-run `/get-started` afterwards; it's idempotent.
+It will ask which commands you want, detect or ask for your details, **verify the required credentials and connections actually work** (GitHub CLI auth, Slack MCP, ElevenLabs key, Kokoro install, ollama daemon, Python 3), and install only the commands that pass. Anything that fails verification is skipped with instructions to fix it — just re-run `/get-started` afterwards; it's idempotent.
 
 Newly installed commands are picked up when you start your next Claude Code session.
 
@@ -29,8 +29,12 @@ Builds a deep, verified mental model of whatever repo your session is rooted in 
 **Needs:** nothing — works in any repo.
 
 ### `/coldstart`
-Full situational awareness when you start a fresh session in a project with history: a codebase discovery pass (structure, manifests, recent git activity) combined with a review of your most recent Claude Code session transcripts for that directory — what was being worked on, decisions made and why, open threads, anything explicitly deferred. Transcript findings are cross-referenced against `git log`, so work that was discussed but never committed gets flagged as in-progress or abandoned instead of assumed done. Ends with a terse state-of-the-project brief — current focus, recent decisions, open threads, known landmines — and asks what you want to pick up. Where `/onboard` builds a mental model of the code, `/coldstart` reconstructs the story so far; extraction is defensive and reads only your own local `~/.claude/projects/` history.
-**Needs:** `jq`.
+Full situational awareness when you start a fresh session in a project with history. A discovery pass reads the **filesystem**; it never reads your past conversations — yet on a project with months of history, that is where a lot of the decisions live, including ones that never reached a document. `/coldstart` reads both: structure, manifests and recent git activity, plus your prior Claude Code sessions for that directory.
+
+Transcripts are treated as the *third* source, after committed docs and the git log, and they are **searched, never bulk-read** — they run to hundreds of megabytes. Search returns **your own messages by default**, newest first, and that default is the point: your turns are decisions, while assistant turns are reasoning that includes wrong turns and claims retracted later in the same session, with no signal in the text that they were withdrawn. `--all` includes them for reconstructing *how* something was worked out, as leads to verify rather than facts.
+
+Everything a transcript claims was done is cross-referenced against `git log`, so work discussed but never committed is flagged **in progress** or **abandoned** instead of assumed done. Ends with a terse brief — current focus, recent decisions and rationale, open threads, known landmines, and any contradictions between docs, said out loud rather than silently resolved — then asks what you want to pick up. Where `/onboard` builds a mental model of the code, `/coldstart` reconstructs the story so far. It reads only your own local `~/.claude/projects/` history.
+**Needs:** Python 3 — the transcript search is a stdlib-only sidecar script, installed for you, see below.
 
 ### `/bye`
 The end-of-session bookend to `/onboard`: answers **"are we safe to close?"** before you kill the session. Read-only audit first — did the goal actually land, do tests pass, is anything uncommitted or unpushed, is a shared checkout stranded on a feature branch, which session-created worktrees and branches are confirmed-merged and safe to clean, and does any external tracker or doc still reflect reality (merge ≠ deploy). Then one severity-grouped report and a choice: finish the work, housekeep & close, or close anyway — the bypass path writes a handoff note so the next session doesn't start cold. Nothing state-changing runs without approval, and unmerged work is never force-deleted.
@@ -78,6 +82,12 @@ To use one: clone this repo, then point your coding agent (Claude Code, Codex, G
 > Install `memories/<name>.md` for `/path/to/project`.
 
 Agent-executable install instructions (per level, per agent) and the full decoupling standard live in [`memories/README.md`](memories/README.md); the file shape is [`memories/TEMPLATE.md`](memories/TEMPLATE.md). New memories are added with `/memorize`, which enforces the standard for you.
+
+## Setting up `history.py` for `/coldstart`
+
+No setup needed — `/get-started` copies **[`coldstart-setup/history.py`](coldstart-setup/history.py)** to `~/.claude/bin/` and points the installed command at it. Python 3 is the only requirement: the script is stdlib-only, with no pip install, no virtualenv, and no network.
+
+It exists as a script rather than an inline one-liner because three things quietly corrupt a briefing otherwise: sessions started in a **worktree or subdirectory** are filed under the parent project, so exact path-encoding misses and reports no history; transcripts are full of `<system-reminder>` and hook output that reads like the user talking but isn't; and at hundreds of megabytes they have to be searched rather than loaded. It is also usable on its own — `index`, `recent`, and `search` against any project's history. Details and manual install: **[`coldstart-setup/COLDSTART_SETUP.md`](coldstart-setup/COLDSTART_SETUP.md)**.
 
 ## Setting up Kokoro for `/speak`
 

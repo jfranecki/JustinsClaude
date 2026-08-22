@@ -24,7 +24,7 @@ Present this menu (with AskUserQuestion, multiSelect, unless $ARGUMENTS already 
 | Command | What it does | Hard requirements |
 |---|---|---|
 | `onboard` | Deep codebase onboarding briefing for whatever repo a session starts in | none |
-| `coldstart` | State-of-the-project brief at session start: codebase discovery + a review of your recent Claude Code session transcripts for the repo, cross-referenced against git log | `jq` |
+| `coldstart` | State-of-the-project brief at session start: codebase discovery + a review of your recent Claude Code session transcripts for the repo, cross-referenced against git log | `python3` — installs the `history.py` sidecar, see `coldstart-setup/COLDSTART_SETUP.md` |
 | `bye` | End-of-session close-out: verifies the session's goal landed, audits git state, cleans up merged worktrees/branches | none; `gh` recommended |
 | `review-deep` | Rigorous multi-phase GitHub PR review (spec alignment, conflicts, security) | `gh` authenticated; Atlassian `acli` optional |
 | `pr-autoreview` | Unattended sweep: finds open PRs needing your review in one configured repo, deep-reviews them in parallel worktrees, auto-posts human-voiced reviews | `review-deep` installed, `gh` authed with access to the target repo, a local clone of it, `python3` |
@@ -45,6 +45,7 @@ Run in parallel where possible; record every result:
 - audio player for `speak-api`: `command -v afplay ffplay mpv mpg123 cvlc` — any one is enough
 - Slack MCP: use ToolSearch with query `select:mcp__claude_ai_Slack__slack_read_channel`. If it resolves, Slack is connected. If not, the fix is: run `/mcp` and connect "claude.ai Slack".
 - Kokoro: check the conventional spots (`~/ToolboxRepos/kokoro`, `~/Tools/kokoro`, `~/kokoro`) for a dir containing both `.venv/bin/python` and `speak.py`.
+- `history.py` for `coldstart`: it ships in this repo at `<repo>/coldstart-setup/history.py`. Confirm it is present and that `python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read())' <path>` parses it.
 - ollama: `command -v ollama`, then probe the daemon with `curl -sS --max-time 5 http://localhost:11434/api/tags` (a running daemon returns JSON containing a `models` array). List what is pulled with `ollama list`.
 - `claudish.sh`: check the conventional spots (`~/ToolboxRepos/claudish/claudish.sh`, `~/.claude/bin/claudish.sh`) for the wrapper script.
 - Platform: `speak` (Kokoro) plays audio via `afplay`/`open`, so it is macOS-first — on Linux or Windows, warn that `speak.py` needs its playback command swapped. `speak-api` auto-detects a player and needs no changes.
@@ -65,6 +66,7 @@ Only ask for what the selected commands actually need. The full placeholder map:
 | `{{SLACK_USER_ID}}` | slack-updates | ask. Where to find it: Slack → click your profile photo → **Profile** → **⋮ (three dots)** → **Copy member ID**. Looks like `U0XXXXXXXXX`. If Slack MCP is connected you may instead `slack_search_users` for their name and confirm the match. |
 | `{{SLACK_CHANNELS_TABLE}}` | slack-updates | ask which channels to track and at which tier (`urgent` / `core` / `ambient`). If Slack MCP is connected, resolve each name to its ID with `slack_search_channels` yourself; otherwise ask the user for IDs (channel → ⋮ → copy link; the ID is the `C…` segment). Render as markdown table rows: `\| urgent \| #incidents \| C0XXXXXXX \|` — one line per channel, no header (the template provides it). |
 | `{{KOKORO_DIR}}` | speak | detected candidate or ask. Validate `<dir>/.venv/bin/python` and `<dir>/speak.py` both exist. If Kokoro isn't installed and they want `/speak`, offer two paths: (a) you perform the setup now by following `kokoro-setup/KOKORO_SETUP.md` in this repo, or (b) they do it later and re-run `/get-started`. |
+| `{{HISTORY_SCRIPT}}` | coldstart | detected, never ask: the absolute path the sidecar is installed to in Step 5 — `~/.claude/bin/history.py`, expanded. Do **not** point it at the copy inside the clone; the clone can move or be deleted and the installed command would silently lose its history search. |
 | `{{CLAUDISH_SCRIPT}}` | claudish | detected candidate or ask: the absolute path to `claudish.sh` (shipped in `ollama-setup/`). Validate the file exists and `bash -n <path>` parses. If ollama isn't set up and they want `/claudish`, offer two paths: (a) you perform the setup now by following `ollama-setup/OLLAMA_SETUP.md` in this repo — it measures their hardware (GPU VRAM / unified memory / RAM) and sizes the model to match, which matters a lot here — or (b) they do it later and re-run `/get-started`. |
 | `{{MEMORIES_REPO}}` | memorize | detected, never ask: the repo root resolved in Step 0. Confirm with the user that their clone will stay at this path — `/memorize` writes drafts into it, so if the clone moves they must re-run `/get-started`. |
 
@@ -75,7 +77,7 @@ Use absolute paths everywhere (expand `~` before substitution).
 For each selected command, evaluate its gate. **Required failures block installation of that command** (skip it, explain the fix); optional failures install with a clear warning.
 
 - `onboard` — no gate.
-- `coldstart` — required: `jq` (the Phase 2 transcript-extraction pipeline). No placeholders — installs as-is.
+- `coldstart` — required: `python3` present; `<repo>/coldstart-setup/history.py` present and parsing. Also installs the sidecar (Step 5). The command degrades gracefully with no transcript history — it reports that and delivers the filesystem pass — so an empty `~/.claude/projects/` is not a gate failure.
 - `bye` — no gate. Optional: `gh` authenticated — without it, merge confirmation falls back to plain git checks.
 - `review-deep` — required: `gh auth status` logged in. Optional: `acli`/`jira` present (without it, Jira spec-mapping degrades gracefully); each CLONE_ROOTS directory exists.
 - `pr-autoreview` — required: `review-deep` being installed in this same run (or already present in `~/.claude/commands/`); `gh` access to `{{GITHUB_REPO}}`; valid `{{MAIN_CHECKOUT}}`; `python3` present. Also installs both workflow files (Step 5). **Warn explicitly**: this command POSTS REVIEWS to GitHub under their account when run — they should read `commands/pr-autoreview.md` before scheduling it.
@@ -94,6 +96,11 @@ For each command that passed its gate:
 3. If `~/.claude/commands/<name>.md` already exists, tell the user and ask before overwriting (offer to show a diff).
 4. **Write** the result to `~/.claude/commands/<name>.md`.
 5. After writing, `grep` the installed file for `{{` — any leftover token means a substitution was missed; fix it before declaring success.
+
+For `coldstart` additionally install the transcript-search sidecar **before** substituting `{{HISTORY_SCRIPT}}`:
+- `mkdir -p ~/.claude/bin`, then copy `<repo>/coldstart-setup/history.py` → `~/.claude/bin/history.py` (verbatim — it takes all config via runtime args).
+- Verify with `python3 ~/.claude/bin/history.py index` run from any git repo. Both a transcript table and `no transcript history found for this project` are passes; a traceback is not.
+- `{{HISTORY_SCRIPT}}` is that absolute path with `~` expanded.
 
 For `pr-autoreview` additionally copy the two workflow files (they take all config via runtime args, so they are copied verbatim):
 - `<repo>/workflows/pr-review-fanout.js` → `~/.claude/workflows/pr-review-fanout.js`

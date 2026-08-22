@@ -1,93 +1,114 @@
 ---
-description: State-of-the-project brief at session start — codebase discovery + a review of your recent Claude Code session transcripts for the current directory
-allowed-tools: Bash(pwd:*), Bash(ls:*), Bash(tree:*), Bash(git:*), Bash(jq:*), Bash(head:*), Bash(grep:*), Bash(sed:*), Read, Glob, Grep
+description: State-of-the-project brief at session start — filesystem, git, docs, and the past conversations a normal discovery pass never reads
+allowed-tools: Bash(pwd:*), Bash(ls:*), Bash(tree:*), Bash(git:*), Bash(python:*), Bash(python3:*), Bash(head:*), Bash(grep:*), Bash(sed:*), Read, Glob, Grep
 ---
 
 # /coldstart — Project Situational Awareness
 
-Build a state-of-the-project brief from two sources: the codebase as it exists
-now, and the prior Claude Code session transcripts for this directory. Run the
-three phases in order. Output style is terse, bullet-pointed,
-engineering-report shape — no preamble, no narration of the process, no
-restating of these instructions.
+A discovery pass reads the **filesystem**. It never reads your past conversations — yet on
+a project with months of history, that is where a lot of the decisions live, including
+ones that never made it into a document.
 
-## Phase 1 — Discovery pass
+This gives a new session both, cheaply, without dragging hundreds of megabytes of
+transcript into context. Output is terse and engineering-report shaped: no preamble, no
+narrating the process, no restating these instructions.
 
-Run tool calls in parallel where possible.
+## Run these first (parallel, one message)
 
-- Project structure: `tree -L 2` (or `ls` per directory if tree is missing),
-  skipping `node_modules`, `.git`, and build/output dirs
-  (`tree -L 2 -I 'node_modules|.git|dist|build|target|__pycache__|.venv'`).
-- Read README, `docs/`, `CLAUDE.md`, and package manifests (`package.json`,
-  `pyproject.toml`, `Cargo.toml`, `go.mod`, `Gemfile`, etc.) — whichever exist.
-- `git log --oneline -20` and `git status` for recent activity and in-flight
-  work. If the directory is not a git repo, note that in one line and move on —
-  do not abort.
-- Note the tech stack, entry points, and test setup.
+Transcript search is done by `history.py`, installed at `{{HISTORY_SCRIPT}}`. It is
+stdlib-only Python 3 — use `python3` if present, otherwise `python`.
 
-## Phase 2 — Session history pass
+```bash
+git -C . log --oneline -20
+git -C . status --porcelain
+python3 "{{HISTORY_SCRIPT}}" index
+tree -L 2 -I 'node_modules|.git|dist|build|target|__pycache__|.venv'
+```
 
-Transcripts for the current project live at
-`~/.claude/projects/<encoded-cwd>/*.jsonl`, where `<encoded-cwd>` is the
-absolute cwd path with all non-alphanumeric characters replaced by `-`
-(example: `/Users/you/repos/my-app` → `-Users-you-repos-my-app`).
+Plus a filesystem sweep:
 
-1. Resolve the directory by encoding `$PWD`:
+- `CLAUDE.md`, `README.md`, and any `docs/`, `audit/` or `specs/` index files.
+- Package manifests — `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Gemfile`,
+  whichever exist. Note the tech stack, entry points, and test setup.
+- Glob for `*HANDOFF*`, `*BACKLOG*`, `*STATUS*`, `*DECISION*` — on a long-lived project
+  those names carry the state.
 
-   ```bash
-   ENCODED=$(pwd | sed 's/[^a-zA-Z0-9]/-/g')
-   ls -d ~/.claude/projects/"$ENCODED" 2>/dev/null
-   ```
+If the directory is not a git repo, note it in one line and continue; do not abort.
 
-   Verify with `ls ~/.claude/projects/ | grep -i <repo-name>` if the exact
-   match fails. If no transcript directory exists, say so in one line and
-   deliver Phase 1 + Phase 3 only.
+## Then orient, in this order
 
-2. List the `.jsonl` files sorted by mtime (`ls -t`) and take the 3–5 most
-   recent sessions. The newest file is usually the *current* session (often
-   near-empty or containing only this coldstart request) — look past it to the
-   next files rather than spending a slot on it.
+1. **Committed docs are the primary source.** They hold rulings and reasoning that survived
+   review. Read them before any transcript.
+2. **Git log is the second source.** Commit messages on a well-kept project say *why*.
+3. **Transcripts are the third source, and they are for SPECIFIC QUESTIONS ONLY.** Do not
+   bulk-read them. Search when you have a question the docs did not answer:
 
-3. Extract conversation text. **Never cat entire transcript files** — they can
-   be tens of MB. Extract only user messages and assistant text blocks; skip
-   tool_use/tool_result entries entirely. The JSONL schema is internal to
-   Claude Code and changes between versions, so be defensive: parse
-   line-by-line, tolerate and skip lines that fail to parse, use loose jq
-   filters with fallbacks, and cap output per session:
+```bash
+python3 "{{HISTORY_SCRIPT}}" search "currency system" -n 10
+python3 "{{HISTORY_SCRIPT}}" recent -n 3   # what were the last sessions about
+```
 
-   ```bash
-   jq -R -r 'fromjson? | select(.type=="user" or .type=="assistant")
-             | (.message.content? // empty)
-             | if type=="array" then map(.text // empty) | join("\n") else . end' \
-     "$FILE" 2>/dev/null | grep -v '^\s*$' | head -200
-   ```
+`recent` surfaces the last sessions' subject matter. The newest transcript is usually the
+*current* session — often near-empty or holding only this coldstart request — so read past
+it rather than spending a slot on it.
 
-   `-R` + `fromjson?` reads each line as raw text and silently skips any that
-   fail to parse (plain `jq` would halt at the first malformed line). The
-   `// empty` fallback skips lines without `message.content` (summary/meta
-   entries) instead of printing literal `null`, and `.content?` guards against
-   a `message` that isn't an object. If the filter yields nothing readable,
-   adjust it against the actual schema of a sample line
-   (`head -5 "$FILE" | jq 'keys'`) rather than giving up.
+Hunt deferred work explicitly, since it rarely reaches a document — search the phrases
+people actually use when postponing something:
 
-4. From each session reconstruct: what was being worked on, decisions made and
-   their rationale, open threads, and anything explicitly deferred ("we'll do
-   X later", "TODO", "for now").
+```bash
+python3 "{{HISTORY_SCRIPT}}" search "for now" -n 10
+python3 "{{HISTORY_SCRIPT}}" search "later" -n 10
+python3 "{{HISTORY_SCRIPT}}" search "TODO" -n 10
+```
 
-5. Cross-reference against `git log`: work discussed in transcripts but absent
-   from commits is likely in-progress or abandoned — flag it as such rather
-   than assuming it's done.
+If `index` reports no history, this project simply has no prior sessions — carry on with
+the filesystem pass and say so in the briefing.
 
-## Phase 3 — Synthesis
+## The rule that makes transcript search safe
 
-Emit a state-of-the-project brief with these sections:
+`search` returns **the user's own messages by default, newest first.** That is deliberate.
 
-- **Current focus** — what the project is converging on right now.
-- **Recent decisions + rationale** — from transcripts, marked as historical
-  context that current code supersedes if they conflict.
-- **Open threads / deferred work** — with in-progress vs. abandoned flags from
-  the git cross-reference.
-- **Known landmines** — recurring bugs, fragile areas, gotchas mentioned
-  across sessions.
+- **User turns are decisions.** Rulings, corrections, preferences, priorities.
+- **Assistant turns are reasoning**, including wrong turns and claims later retracted.
+  Searching them surfaces confident text with no signal it was withdrawn — worse than not
+  searching at all.
 
-End by asking what the user wants to pick up.
+`--all` includes assistant turns. Use it only to reconstruct *how* something was worked
+out, and treat every hit as a lead to verify, never a fact to act on.
+
+**Newest wins.** If an old message and a recent one conflict, the recent one is the
+ruling. If a transcript and a committed doc conflict, check dates — usually the doc is the
+distilled version, but not always, and the disagreement itself is worth raising.
+
+## Cross-reference before you believe any of it
+
+Anything a transcript says was done, but which no commit reflects, is **not done**. Check
+every claimed piece of work against `git log` and the working tree, then label it:
+
+- **in progress** — uncommitted changes or a live branch back it up.
+- **abandoned** — discussed, never landed, nothing in flight.
+
+Report the label. Never let a transcript's intent read as completed work.
+
+## Report back
+
+A short briefing, not a book:
+
+- **What this project is**, in two sentences.
+- **Where it is right now** — branch, recent commits, anything uncommitted or in flight.
+- **Current focus** — what the project is converging on.
+- **Recent decisions + rationale** — marked as historical context that current code
+  supersedes where they conflict.
+- **Authoritative documents**, by path.
+- **Open threads / deferred work**, each flagged in progress or abandoned.
+- **Known landmines** — recurring bugs, fragile areas, gotchas repeated across sessions.
+- **Contradictions** between docs. **Say so rather than silently picking one.**
+- **What you believe the next task is** — then **ask**, because the user has context no
+  artifact holds.
+
+## Do not
+
+- Do not bulk-ingest transcripts. They can be hundreds of megabytes and are mostly noise.
+- Do not treat a transcript hit as current truth. Verify against code or a committed doc.
+- Do not report transcript-discussed work as done without a commit backing it.
+- Do not start work off this briefing alone. Confirm the goal first.
