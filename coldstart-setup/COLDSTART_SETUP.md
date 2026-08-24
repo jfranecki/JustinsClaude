@@ -33,10 +33,11 @@ project`, the script is working and this project genuinely has no sessions yet.
 Three things a one-liner gets wrong, all of which quietly corrupt the briefing:
 
 1. **Project-directory resolution.** Claude Code files transcripts under
-   `~/.claude/projects/<encoded-path>/`, encoding the absolute cwd by replacing `:`, `\`,
-   and `/` with `-`. A session started in a **worktree or subdirectory** can be filed under
-   the parent project, so an exact match misses. `project_dir()` falls back to the
-   longest-matching candidate directory instead of reporting no history.
+   `~/.claude/projects/<encoded-path>/`, encoding the absolute cwd by replacing **every
+   non-alphanumeric character** with `-` — not just path separators, so `my_repo` and
+   `app.v2` are encoded too. A session started in a **worktree or subdirectory** can be
+   filed under the parent project, so an exact match misses. `project_dir()` falls back
+   to the longest-matching candidate directory instead of reporting no history.
 2. **Noise.** Transcripts are full of `<system-reminder>`, `<command-name>`,
    `<local-command-caveat>`, and hook output that reads like the user talking but isn't.
    The script filters those out; a naive extraction feeds them to you as conversation.

@@ -35,18 +35,20 @@ _SKIP = re.compile(
 
 
 def project_dir(cwd: Path | None = None) -> Path | None:
-    """Claude Code encodes the project path into a folder name (: \\ / -> -).
+    """Claude Code encodes the project path into a folder name (every
+    non-alphanumeric char -> -), so `_` and `.` are encoded too, not just
+    path separators.
 
     A worktree or subdirectory session can be filed under the parent project, so
     an exact miss falls back to the longest-matching candidate.
     """
     cwd = (cwd or Path.cwd()).resolve()
-    exact = PROJECTS / re.sub(r"[:\\/]", "-", str(cwd))
+    exact = PROJECTS / re.sub(r"[^A-Za-z0-9]", "-", str(cwd))
     if exact.is_dir():
         return exact
     if not PROJECTS.is_dir():
         return None
-    key = re.sub(r"[:\\/]", "-", str(cwd))
+    key = re.sub(r"[^A-Za-z0-9]", "-", str(cwd))
     best, best_len = None, 0
     for cand in PROJECTS.iterdir():
         if cand.is_dir() and key.startswith(cand.name) and len(cand.name) > best_len:
