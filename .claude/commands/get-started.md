@@ -68,6 +68,7 @@ Only ask for what the selected commands actually need. The full placeholder map:
 | `{{KOKORO_DIR}}` | speak | detected candidate or ask. Validate `<dir>/.venv/bin/python` and `<dir>/speak.py` both exist. If Kokoro isn't installed and they want `/speak`, offer two paths: (a) you perform the setup now by following `kokoro-setup/KOKORO_SETUP.md` in this repo, or (b) they do it later and re-run `/get-started`. |
 | `{{HISTORY_SCRIPT}}` | coldstart | detected, never ask: the absolute path the sidecar is installed to in Step 5 — `~/.claude/bin/history.py`, expanded. Do **not** point it at the copy inside the clone; the clone can move or be deleted and the installed command would silently lose its history search. |
 | `{{CLAUDISH_SCRIPT}}` | claudish | detected candidate or ask: the absolute path to `claudish.sh` (shipped in `ollama-setup/`). Validate the file exists and `bash -n <path>` parses. If ollama isn't set up and they want `/claudish`, offer two paths: (a) you perform the setup now by following `ollama-setup/OLLAMA_SETUP.md` in this repo — it measures their hardware (GPU VRAM / unified memory / RAM) and sizes the model to match, which matters a lot here — or (b) they do it later and re-run `/get-started`. |
+| `{{ORCHESTRATOR_FRAMEWORK_PATH}}` | orchestrator | detected, never ask: the `Orchestrator Framework/` directory in the repo root resolved in Step 0, as an absolute path. It ships with the repo. If the user later moves the framework elsewhere (e.g. alongside their projects rather than in the clone), they re-run `/get-started` — the command still works with a dead path, it just loses the full writeup and falls back to the tier rule it carries inline. |
 | `{{MEMORIES_REPO}}` | memorize | detected, never ask: the repo root resolved in Step 0. Confirm with the user that their clone will stay at this path — `/memorize` writes drafts into it, so if the clone moves they must re-run `/get-started`. |
 
 Use absolute paths everywhere (expand `~` before substitution).
@@ -77,6 +78,7 @@ Use absolute paths everywhere (expand `~` before substitution).
 For each selected command, evaluate its gate. **Required failures block installation of that command** (skip it, explain the fix); optional failures install with a clear warning.
 
 - `onboard` — no gate.
+- `orchestrator` — no gate. Optional: `<repo>/Orchestrator Framework/` present in the clone (it ships with the repo) — without it the command still works, carrying the tier rule inline, and only loses the full writeup and templates.
 - `coldstart` — required: `python3` present; `<repo>/coldstart-setup/history.py` present and parsing. Also installs the sidecar (Step 5). The command degrades gracefully with no transcript history — it reports that and delivers the filesystem pass — so an empty `~/.claude/projects/` is not a gate failure.
 - `bye` — no gate. Optional: `gh` authenticated — without it, merge confirmation falls back to plain git checks.
 - `review-deep` — required: `gh auth status` logged in. Optional: `acli`/`jira` present (without it, Jira spec-mapping degrades gracefully); each CLONE_ROOTS directory exists.
