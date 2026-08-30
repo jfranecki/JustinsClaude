@@ -75,10 +75,17 @@ legwork goes down; two peers deliberating is waste, and a worker outranking its
 orchestrator inverts who is supposed to be ruling.
 
 In practice: know which model this session is (it is stated in the environment
-block), then pass `model` explicitly on every `Agent` call — never rely on the
-default, which may match your own tier. Pick by weight of task: Haiku for
-enumeration and mechanical sweeps, Sonnet for analysis and judgment calls that
-still aren't rulings.
+block), then delegate through the tier-named worker agents — `subagent_type:
+"sonnet-worker"` or `"haiku-worker"` — instead of `"general-purpose"`. Their
+frontmatter pins the model, and the type name is what the agent panel and task list
+display, so the tier of every running subagent stays visible on screen. Omit the
+`model` parameter when using them: it overrides frontmatter, and an override that
+disagrees with the name makes the label lie. If they are not installed
+(`~/.claude/agents/`), pass `model` explicitly on every `Agent` call — never rely on
+the default, which may match your own tier — and prefix the `description` with the
+tier so it still shows in the panel. Pick by weight of task: Haiku for enumeration
+and mechanical sweeps, Sonnet for analysis and judgment calls that still aren't
+rulings.
 
 Do not use `subagent_type: "fork"` for delegation here. A fork inherits the
 parent's model and ignores a `model` override, which breaks the hierarchy by

@@ -41,7 +41,17 @@ You may spawn subagents **strictly below your own tier** — never your own tier
 higher. Fable spawns Opus or Sonnet; Opus spawns Sonnet or Haiku; Sonnet spawns Haiku.
 Reasoning stays at the top, legwork goes down.
 
-- Pass `model` **explicitly** on every delegation. The default may match your tier.
+- **Delegate through the tier-named worker agents** — `subagent_type: "opus-worker"`,
+  `"sonnet-worker"`, or `"haiku-worker"` (installed to `~/.claude/agents/`, sources in
+  the framework's `agents/` folder). Their frontmatter pins the model, and because the
+  type name is what the agent panel and task list render, the tier stays visible on
+  screen for the life of the run.
+- With those types, **omit the `model` parameter** — the frontmatter already pins it,
+  and a `model` override wins over frontmatter, so a mismatched override would make the
+  on-screen name lie. Where the worker agents are not installed, fall back to passing
+  `model` explicitly on every delegation (the default may match your tier) and prefix
+  the `description` with the tier — `"Sonnet: verify firmware currency"` — so the label
+  still shows up in the panel.
 - Never use a `fork`-type subagent to delegate — a fork inherits your model and
   ignores a `model` override, breaking the hierarchy by construction.
 - Pick by weight: the lowest tier for enumeration and mechanical sweeps, the tier

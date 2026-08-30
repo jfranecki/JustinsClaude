@@ -15,7 +15,7 @@ Work conversationally but efficiently: batch your detection commands, use AskUse
 ## Step 0 — Locate the repo and sanity-check
 
 1. Resolve the repo root: `git rev-parse --show-toplevel` (fall back to cwd). Verify `commands/` exists there and contains the template `.md` files. If not, stop: tell the user to `cd` into their clone of this repo and re-run `/get-started`.
-2. `mkdir -p ~/.claude/commands ~/.claude/workflows` so installs can't fail on missing dirs.
+2. `mkdir -p ~/.claude/commands ~/.claude/workflows ~/.claude/agents` so installs can't fail on missing dirs.
 
 ## Step 1 — What's on offer
 
@@ -78,7 +78,7 @@ Use absolute paths everywhere (expand `~` before substitution).
 For each selected command, evaluate its gate. **Required failures block installation of that command** (skip it, explain the fix); optional failures install with a clear warning.
 
 - `onboard` — no gate.
-- `orchestrator` — no gate. Optional: `<repo>/Orchestrator Framework/` present in the clone (it ships with the repo) — without it the command still works, carrying the tier rule inline, and only loses the full writeup and templates.
+- `orchestrator` — no gate. Optional: `<repo>/Orchestrator Framework/` present in the clone (it ships with the repo) — without it the command still works, carrying the tier rule inline, and only loses the full writeup and templates. Also installs the tier-named worker agents from `Orchestrator Framework/agents/` (Step 5); if that folder is missing, say so in the final report — the command falls back to explicit `model` plus a tier-prefixed description, and the subagent's tier stops being visible in the agent panel.
 - `coldstart` — required: `python3` present; `<repo>/coldstart-setup/history.py` present and parsing. Also installs the sidecar (Step 5). The command degrades gracefully with no transcript history — it reports that and delivers the filesystem pass — so an empty `~/.claude/projects/` is not a gate failure.
 - `bye` — no gate. Optional: `gh` authenticated — without it, merge confirmation falls back to plain git checks.
 - `review-deep` — required: `gh auth status` logged in. Optional: `acli`/`jira` present (without it, Jira spec-mapping degrades gracefully); each CLONE_ROOTS directory exists.
@@ -103,6 +103,17 @@ For `coldstart` additionally install the transcript-search sidecar **before** su
 - `mkdir -p ~/.claude/bin`, then copy `<repo>/coldstart-setup/history.py` → `~/.claude/bin/history.py` (verbatim — it takes all config via runtime args).
 - Verify with `python3 ~/.claude/bin/history.py index` run from any git repo. Both a transcript table and `no transcript history found for this project` are passes; a traceback is not.
 - `{{HISTORY_SCRIPT}}` is that absolute path with `~` expanded.
+
+For `orchestrator` additionally install the tier-named worker agents (verbatim — they
+carry no placeholders):
+- `mkdir -p ~/.claude/agents`, then copy `<repo>/Orchestrator Framework/agents/*.md` →
+  `~/.claude/agents/`.
+- These are what make a subagent's model tier visible on screen: the agent panel and
+  task list render the **type name**, so a run dispatched as `sonnet-worker` is labelled
+  as such for its whole life. Their frontmatter also pins the model. Without them the
+  command still works — it falls back to passing `model` explicitly and prefixing the
+  description with the tier.
+- Ask before overwriting an existing file of the same name, as with commands.
 
 For `pr-autoreview` additionally copy the two workflow files (they take all config via runtime args, so they are copied verbatim):
 - `<repo>/workflows/pr-review-fanout.js` → `~/.claude/workflows/pr-review-fanout.js`

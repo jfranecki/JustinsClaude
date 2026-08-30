@@ -13,6 +13,10 @@ files here are meant to be copied and filled in, not read as prose:
 - `CLAUDE-sections-template.md` — drop-in blocks for a project's `CLAUDE.md`
 - `STATE-template.md` — skeleton for `docs/STATE.md`
 
+The `agents/` folder is different — those three files are installed, not filled in.
+Copy them to `~/.claude/agents/` once and every project gets tier-named workers (see
+§3).
+
 This has been used in two quite different shapes: a spec-driven software project with
 staged sessions and acceptance gates, and a reactive maintenance project with no spec
 machinery at all. Both are referenced below as contrasting examples.
@@ -69,8 +73,24 @@ inverts who is supposed to be ruling.
 In practice:
 
 - Know the current session's model — it is stated in the environment block.
-- Pass `model` **explicitly** on every `Agent` call. Never rely on the default; it
-  may match your own tier.
+- **Delegate through the tier-named worker agents** in this folder's `agents/`
+  directory — `opus-worker`, `sonnet-worker`, `haiku-worker`. Copy them to
+  `~/.claude/agents/` (user-level, so they work in every project) and dispatch with
+  `subagent_type: "sonnet-worker"` rather than `"general-purpose"`.
+
+  Two things follow from that, and the second is the point: the frontmatter pins the
+  model so the tier cannot drift, and the **agent type name is the field the agent
+  panel and task list render**, so the tier is legible on screen for the whole run
+  instead of being inferred from the orchestrator's own tier. The inline `Agent(…)`
+  header already prints the model natively; the panel rows do not, and there is no
+  setting that adds it — the type name is the lever.
+- With those types, **omit `model`** on the `Agent` call. The parameter overrides
+  frontmatter, so an override that disagrees with the type name makes the on-screen
+  label lie. One source of truth: the name.
+- Where the worker agents are not installed, pass `model` **explicitly** on every
+  `Agent` call — never rely on the default, which may match your own tier — and prefix
+  the `description` with the tier (`"Sonnet: audit the log rotation"`) so the level
+  still shows in the panel.
 - Pick by weight of task: the lowest tier for enumeration and mechanical sweeps, the
   tier above it for analysis and judgment calls that still are not rulings.
 - **Never use `subagent_type: "fork"` for delegation.** A fork inherits the parent's
@@ -194,6 +214,8 @@ checkouts, live personal data. Write yours; do not inherit another project's.
 
 ### New project
 
+0. Copy `agents/*.md` to `~/.claude/agents/` if they are not there yet. One-time,
+   user-level, shared by every project.
 1. Copy the blocks from `CLAUDE-sections-template.md` into the project's
    `CLAUDE.md`, filling every `{{placeholder}}`.
 2. Copy `STATE-template.md` to `docs/STATE.md`.

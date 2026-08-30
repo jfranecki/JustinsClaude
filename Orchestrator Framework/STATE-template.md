@@ -40,9 +40,13 @@ Last updated: {{DATE}} ({{ONE_LINE_STATUS_AND_WHAT_IS_NEXT}})
 - **{{DATE}} — Orchestrator framework adopted.** Per
   `{{ORCHESTRATOR_FRAMEWORK_PATH}}`. {{PORTED_VS_LEFT_OUT}}
 - **{{DATE}} — Model hierarchy**: an orchestrator spawns only strictly
-  below its own tier. Fable > Opus > Sonnet > Haiku. Pass `model` explicitly on
-  every delegation; never `fork` (it inherits the parent's model). The advisor is
-  exempt — always Fable, consulted rather than spawned, callable at any depth.
+  below its own tier. Fable > Opus > Sonnet > Haiku. Delegate through the tier-named
+  worker agents (`sonnet-worker`, `haiku-worker`, `opus-worker` in `~/.claude/agents/`)
+  and omit `model` — their frontmatter pins it, and the type name is what the agent
+  panel renders, so the tier stays visible on screen. Where they are not installed,
+  pass `model` explicitly and prefix the description with the tier. Never `fork` (it
+  inherits the parent's model). The advisor is exempt — always Fable, consulted rather
+  than spawned, callable at any depth.
 - **{{DATE}} — Rationale for the whole pattern**: the orchestrator's
   context window is the scarce resource. Delegating heavy lifting keeps the window
   from filling with output referenced once and never again, which extends how long
