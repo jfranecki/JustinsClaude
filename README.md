@@ -1,6 +1,6 @@
 # Claude Commands
 
-A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, a state-of-the-project coldstart brief that catches you up on where past sessions left off, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, two ways to have Claude read its answers aloud, and a plain-English rewrite powered by a local LLM — plus a [library of portable engineering memories](#memories) any coding agent can ingest.
+A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, a state-of-the-project coldstart brief that catches you up on where past sessions left off, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, two ways to have Claude read its answers aloud, and a plain-English rewrite powered by a local LLM — plus an [orchestrator mode](#orchestrator-framework) that keeps long sessions coherent by delegating the heavy lifting, and a [library of portable engineering memories](#memories) any coding agent can ingest.
 
 The files in `commands/` are **templates** — they contain `{{PLACEHOLDER}}` tokens for everything specific to you (GitHub username, repos, Slack channels, local paths). Nothing here assumes a particular company or codebase. The bundled `/get-started` installer interviews you, verifies your credentials, fills in the templates, and installs working commands into `~/.claude/`.
 
@@ -87,6 +87,56 @@ To use one: clone this repo, then point your coding agent (Claude Code, Codex, G
 
 Agent-executable install instructions (per level, per agent) and the full decoupling standard live in [`memories/README.md`](memories/README.md); the file shape is [`memories/TEMPLATE.md`](memories/TEMPLATE.md). New memories are added with `/memorize`, which enforces the standard for you.
 
+## Orchestrator Framework
+
+[`Orchestrator Framework/`](Orchestrator%20Framework/) is a way of running long Claude Code sessions, and [`/orchestrator`](#orchestrator-optional-session-goal) is the command that switches a session into it. The framework is the writeup; the command is the on-ramp.
+
+### The idea
+
+**The orchestrator's context window is the scarce resource, and delegation is what extends its lifespan.** Heavy lifting done in the main session — full log dumps, recursive scans, long file reads, large query results — burns the window on output that gets referenced once and never again. Push that work into subagents and only the conclusions come back, so the session stays coherent across hours of work instead of degrading into compaction.
+
+A subagent's context is disposable. The orchestrator's is not. Every rule below follows from that sentence, and it is the tiebreaker whenever a judgment call about delegating is close.
+
+So you talk to **one session, the orchestrator**. It plans, elicits decisions, rules on tradeoffs, and maintains state. Subagents do the legwork in their own disposable context and return summaries. **Gathering goes down, judgment stays up** — rulings, the final call, and anything needing context only you hold are never delegated, but collecting the evidence behind them is exactly what subagents are for. You read the orchestrator, not its workers.
+
+### The model hierarchy
+
+Tiers, strongest first: **Fable > Opus > Sonnet > Haiku**. An orchestrator spawns subagents **strictly below its own tier** — never its own tier, never higher. Fable spawns Opus or Sonnet; Opus spawns Sonnet or Haiku. Reasoning stays at the top and legwork goes down: two peers deliberating is waste, and a worker outranking its orchestrator inverts who is supposed to be ruling.
+
+In practice that means passing the model explicitly on every delegation rather than relying on a default that may match your own tier, and never using a `fork`-style subagent to delegate — a fork inherits the parent's model and ignores the override, breaking the hierarchy by construction. The advisor is the one exception: it is **consulted, not spawned**, so the tier rule does not bind it and any agent may call it at any depth. Consulting upward is the one direction the hierarchy does not restrict.
+
+### State that outlives the window
+
+Delegation keeps the window from filling; a written state record makes filling *survivable*. Decisions written down live outside the context window, so a compacted or restarted session resumes from the file instead of from memory it no longer has. Write rulings when they are made, not when the window gets tight.
+
+Two failure modes the framework designs against, both learned the hard way:
+
+- **Status rots; dated rulings do not.** "On <date> we decided X because Y" stays true forever. "Current phase: 3" is wrong within a week. Keep the append-only rulings log and be sparing with anything claiming present state — read any status line you find as a *start date*, not a state.
+- **Never let one doc point at another doc as authoritative.** The recurring failure in mature repos is a pointer problem, not a prose problem: every doc names another as the source of truth, and the targets drift. Point at code and at reality.
+
+Which is why the framework requires the *function*, not the filename. A project may already run this under its own names — a handoff or "brain" file, a rulings ledger, a parked-questions file. Where that exists, extend it. A second state surface is worse than none.
+
+### Adopting it
+
+Four things are decided per project, not inherited: whether subagents may change things or are read-only; what the audit trail is (in a git-tracked project, the commits already are one); whether spec/stage machinery applies; and the project's own hard rules and protected paths.
+
+For an existing project, **step one is to audit what it already does, and it can cancel the rest.** A mature project may have invented most of this under other names, may keep its working agreement somewhere other than `CLAUDE.md`, and may have *documented reasons* for refusing an artifact this framework recommends. Those reasons win — they are evidence, the framework is a default. Adopting a framework wholesale over a project that already solved the problem is the failure this step exists to prevent.
+
+The folder ships three files: `README.md` (the writeup and adoption steps), `CLAUDE-sections-template.md` (drop-in blocks with `{{placeholder}}` tokens), and `STATE-template.md` (a state-file skeleton to use only if step one says you need one).
+
+### When to run `/orchestrator`
+
+Not "new projects only." The rule is: **run it wherever the framework is not already auto-loaded into the session.** A project *having* the framework and a session *seeing* it are different things.
+
+| Situation | Run it? |
+|---|---|
+| Project has no framework yet — new or existing | **Yes.** This is the on-ramp. |
+| Framework lives in a file the session does not auto-load — e.g. `CLAUDE.md` is persona text, a prompt, or product content, and the working agreement is in `docs/DEV_CONTINUE.md` or `CONTRIBUTING.md` | **Yes — the best case for it.** Nothing else performs that mode switch. |
+| Project has the orchestrator conventions but no tier rule | **Optional.** Adds the tier declaration; the rest is already established. |
+| `CLAUDE.md` carries the framework and auto-loads it | **Skip.** Pure ceremony. |
+
+The command's unique value is its first step: declaring which model the session is, and therefore which tiers it may delegate to, **before it spawns anything**. That cannot live in a static doc, because which model a session runs varies per launch. Everything else it does is loading and ritual — which is why it is never harmful where the framework is already loaded, only redundant.
+
 ## Setting up `history.py` for `/coldstart`
 
 No setup needed — `/get-started` copies **[`coldstart-setup/history.py`](coldstart-setup/history.py)** to `~/.claude/bin/` and points the installed command at it. Python 3 is the only requirement: the script is stdlib-only, with no pip install, no virtualenv, and no network.
@@ -128,6 +178,7 @@ The script's default model (`gemma3:4b`, 3.3 GB) is chosen to fit a 16 GB laptop
 ```
 commands/        command templates with {{PLACEHOLDER}} tokens — installed (filled-in) by /get-started
 memories/        portable, loosely coupled memories any coding agent can ingest — see memories/README.md
+Orchestrator Framework/   the orchestrator writeup + CLAUDE.md and STATE.md templates, used by /orchestrator
 workflows/       Workflow-tool scripts used by /pr-autoreview (installed to ~/.claude/workflows)
 kokoro-setup/    agent-executable Kokoro runbook + the speak.py wrapper for /speak
 ollama-setup/    agent-executable ollama runbook + the claudish.sh wrapper for /claudish
