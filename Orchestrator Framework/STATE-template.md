@@ -8,7 +8,7 @@
 > "brain" file, a rulings ledger, a parked-questions file. If so, extend what exists
 > and do not copy this template; a competing state surface is worse than none.
 
-> Standing instruction (Justin, {{DATE}}): updated **at every decision**, not at
+> Standing instruction (recorded {{DATE}}): updated **at every decision**, not at
 > session end. It exists so a successor session inherits rulings, open questions,
 > quirks, and in-flight work without loss. Keeping it current is part of every
 > ruling made here.
@@ -38,12 +38,12 @@ Last updated: {{DATE}} ({{ONE_LINE_STATUS_AND_WHAT_IS_NEXT}})
 > rules and protected paths) plus the adoption itself.
 
 - **{{DATE}} — Orchestrator framework adopted.** Per
-  `D:\ClaudeCode\Prompts\Orchestrator Framework`. {{PORTED_VS_LEFT_OUT}}
-- **{{DATE}} — Model hierarchy** (Justin): an orchestrator spawns only strictly
+  `{{ORCHESTRATOR_FRAMEWORK_PATH}}`. {{PORTED_VS_LEFT_OUT}}
+- **{{DATE}} — Model hierarchy**: an orchestrator spawns only strictly
   below its own tier. Fable > Opus > Sonnet > Haiku. Pass `model` explicitly on
   every delegation; never `fork` (it inherits the parent's model). The advisor is
   exempt — always Fable, consulted rather than spawned, callable at any depth.
-- **{{DATE}} — Rationale for the whole pattern** (Justin): the orchestrator's
+- **{{DATE}} — Rationale for the whole pattern**: the orchestrator's
   context window is the scarce resource. Delegating heavy lifting keeps the window
   from filling with output referenced once and never again, which extends how long
   the orchestrator stays coherent. Delegation is therefore the **default**, and
@@ -51,7 +51,7 @@ Last updated: {{DATE}} ({{ONE_LINE_STATUS_AND_WHAT_IS_NEXT}})
 
 ## Open decisions / investigations
 
-> Questions awaiting Justin's answer, and threads that are open but not in flight.
+> Questions awaiting the owner's answer, and threads that are open but not in flight.
 > An empty list is fine; a stale one is not.
 
 ## In-flight work
@@ -66,11 +66,11 @@ Last updated: {{DATE}} ({{ONE_LINE_STATUS_AND_WHAT_IS_NEXT}})
 > the history: tooling that lies, environment constraints, footguns already
 > stepped on. Each one here is a mistake a future session does not have to repeat.
 
-## About Justin (operational facts)
+## About the owner (operational facts)
 
-> Preferences, constraints, and context he has stated that shape how work is done
-> — so he is never asked twice. Deeper personal context belongs in the global
-> memory files, not here.
+> Preferences, constraints, and context they have stated that shape how work is
+> done — so they are never asked twice. Deeper personal context belongs in the
+> global memory files, not here.
 
 ## Predates adoption
 

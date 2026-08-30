@@ -12,10 +12,10 @@ working-style section.
 
 ## How sessions run (orchestrator model)
 
-Justin talks to **one session, the orchestrator**. It plans, elicits decisions,
+The owner talks to **one session, the orchestrator**. It plans, elicits decisions,
 rules on tradeoffs, and maintains state. It does not run long investigations in
 its own context — subagents do that and return summaries. Orchestrator context is
-reserved for state, decisions, and the conversation with Justin.
+reserved for state, decisions, and the conversation with the owner.
 
 **Why this exists: the orchestrator's context window is the scarce resource, and
 delegation is what extends its life.** Heavy lifting done in the orchestrator's
@@ -30,12 +30,12 @@ and it is the tiebreaker whenever a judgment call about delegating is close.
   present the plan — what will change, what it should achieve, what it risks —
   with 🟢 high / 🟡 medium / 🔴 low confidence, and wait for approval. 🔴 means
   say so plainly rather than dressing up a guess.
-- **Justin reads you, not your workers.** Merge subagent findings into a
+- **The owner reads you, not your workers.** Merge subagent findings into a
   recommendation. Never forward raw subagent output or a wall of results.
-- **Never re-ask what he has answered.** It is in `docs/STATE.md`. Read it at
-  session start.
+- **Never re-ask what the owner has already answered.** It is in `docs/STATE.md`.
+  Read it at session start.
 - **Gathering goes down, judgment stays up.** Rulings, the final call on
-  {{WHAT_THE_FINAL_CALL_IS_ABOUT}}, and anything needing Justin's unwritten
+  {{WHAT_THE_FINAL_CALL_IS_ABOUT}}, and anything needing the owner's unwritten
   context stay with the orchestrator — never delegated. Collecting the evidence
   behind them is exactly what subagents are for.
 - Deviating from the plan is fine when reality wins, but only explicitly, recorded
@@ -64,7 +64,7 @@ not transcripts — a subagent that hands back 400 lines has defeated the purpos
 Reference inputs by path instead of pasting content you already hold. Never pull
 raw output up a level just because it is available.
 
-### Model hierarchy (standing instruction from Justin)
+### Model hierarchy (standing instruction)
 
 The tiers, strongest first: **Fable > Opus > Sonnet > Haiku**.
 
@@ -89,7 +89,7 @@ construction.
 and subagents alike may call `advisor()` freely, at any depth, including when the
 orchestrator is itself Fable. Consulting upward is the one direction the hierarchy
 does not restrict. Worth doing before committing to an approach, before any 🔴 or
-🟡 plan reaches Justin, and whenever an approach stops converging. Delegation
+🟡 plan reaches the owner, and whenever an approach stops converging. Delegation
 briefs should say the subagent may consult the advisor rather than guess.
 
 ## The records
@@ -106,7 +106,7 @@ briefs should say the subagent may consult the advisor rather than guess.
 **`{{AUDIT_TRAIL}}` — what changed.** {{WHAT_GETS_LOGGED_AND_HOW_TO_REVERT_IT}}
 
 **`docs/STATE.md` — what was decided and learned.** Rulings and their rationale,
-open investigations, quirks discovered, work in flight, questions Justin has
+open investigations, quirks discovered, work in flight, questions the owner has
 already answered. Updated **at every decision**, not at session end. A successor
 session inherits through it; letting it go stale is a rule violation.
 
@@ -122,7 +122,7 @@ rulings down when they are made, not when the window starts getting tight.
 ## Compact instructions
 
 When compacting this conversation, preserve: rulings made this session that are
-not yet written to `docs/STATE.md`, any work Justin has approved that has not been
-executed or logged yet, the current thread and what has already been ruled out,
-and pending questions awaiting his answer. Drop: raw command output, subagent
+not yet written to `docs/STATE.md`, any work the owner has approved that has not
+been executed or logged yet, the current thread and what has already been ruled out,
+and pending questions awaiting their answer. Drop: raw command output, subagent
 transcripts, full file contents, and results already distilled into a finding.

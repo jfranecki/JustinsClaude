@@ -1,8 +1,11 @@
 # Orchestrator Framework
 
-**This folder is the canonical writeup of how Justin runs Claude sessions.** If you
-are reading it, you are being handed it to set a project up this way — either a new
-project or an ongoing one being retrofitted.
+**This folder is the canonical writeup of how to run long Claude Code sessions as an
+orchestrator.** If you are reading it, you are being handed it to set a project up
+this way — either a new project or an ongoing one being retrofitted.
+
+Throughout, **you** is the agent reading this and **the owner** is the human whose
+project it is.
 
 Read this file, then apply the **Adoption** section at the bottom. The two template
 files here are meant to be copied and filled in, not read as prose:
@@ -10,8 +13,9 @@ files here are meant to be copied and filled in, not read as prose:
 - `CLAUDE-sections-template.md` — drop-in blocks for a project's `CLAUDE.md`
 - `STATE-template.md` — skeleton for `docs/STATE.md`
 
-Reference implementations: `D:\ClaudeCode\ARGO` (spec-driven software project, the
-original) and `D:\ClaudeCode\PC_CleanUp` (reactive maintenance, no spec machinery).
+This has been used in two quite different shapes: a spec-driven software project with
+staged sessions and acceptance gates, and a reactive maintenance project with no spec
+machinery at all. Both are referenced below as contrasting examples.
 
 ---
 
@@ -33,21 +37,21 @@ is close, **this rationale is the tiebreaker.**
 
 ## 2. Roles
 
-Justin talks to **one session, the orchestrator**. It plans, elicits decisions,
+The owner talks to **one session, the orchestrator**. It plans, elicits decisions,
 rules on tradeoffs, and maintains state. It does not do the heavy lifting;
 subagents do, in their own disposable context, and return summaries.
 
 - **Gathering goes down, judgment stays up.** Rulings, the final call, and anything
-  needing Justin's unwritten context stay with the orchestrator — never delegated.
-  Collecting the evidence behind them is exactly what subagents are for.
-- **Justin reads you, not your workers.** Merge subagent findings into a
+  needing the owner's unwritten context stay with the orchestrator — never
+  delegated. Collecting the evidence behind them is exactly what subagents are for.
+- **The owner reads you, not your workers.** Merge subagent findings into a
   recommendation. Never forward raw subagent output or a wall of results.
 - **Plan first, with a confidence gate.** Before consequential work, present the
   plan — what changes, what it should achieve, what it risks — with 🟢 high /
   🟡 medium / 🔴 low confidence, and wait for approval. 🔴 means say so plainly
   rather than dressing up a guess.
-- **Never re-ask what he has answered.** It is in `docs/STATE.md`. Read it at
-  session start.
+- **Never re-ask what the owner has already answered.** It is in the state record.
+  Read it at session start.
 - **Silent drift is the failure mode to police above all others.** Deviating from
   the plan is fine when reality wins — but explicitly, recorded as a ruling, never
   quietly.
@@ -67,8 +71,8 @@ In practice:
 - Know the current session's model — it is stated in the environment block.
 - Pass `model` **explicitly** on every `Agent` call. Never rely on the default; it
   may match your own tier.
-- Pick by weight of task: Haiku for enumeration and mechanical sweeps, Sonnet for
-  analysis and judgment calls that still are not rulings.
+- Pick by weight of task: the lowest tier for enumeration and mechanical sweeps, the
+  tier above it for analysis and judgment calls that still are not rulings.
 - **Never use `subagent_type: "fork"` for delegation.** A fork inherits the parent's
   model and ignores a `model` override, breaking the hierarchy by construction.
 
@@ -76,7 +80,7 @@ In practice:
 spawned, so the tier rule does not bind it. Orchestrator and subagents alike may
 call `advisor()` freely, at any depth, including when the orchestrator is itself
 Fable. Consulting upward is the one direction the hierarchy does not restrict. Use
-it before committing to an approach, before any 🔴 or 🟡 plan reaches Justin, and
+it before committing to an approach, before any 🔴 or 🟡 plan reaches the owner, and
 whenever an approach stops converging.
 
 ## 4. Delegation protocol
@@ -105,8 +109,8 @@ adversarial review lenses.
 raw output has defeated the purpose. Demand conclusions with evidence, not
 transcripts, and never pull raw output up a level just because it is available.
 
-**Never delegate:** rulings, deviation calls, anything requiring Justin's unwritten
-context, and anything the project marks as owner-only.
+**Never delegate:** rulings, deviation calls, anything requiring the owner's
+unwritten context, and anything the project marks as owner-only.
 
 Sequence rather than parallelize when usage limits are tight; cap concurrent
 subagents.
@@ -126,64 +130,63 @@ lifespan: delegation keeps the window from filling, this makes filling
 compacted or restarted orchestrator resumes from the file instead of from memory it
 no longer has.
 
-**Two failure modes to design against**, both learned the hard way in
-`D:\ClaudeCode\Chatbot`:
+**Two failure modes to design against**, both learned the hard way in a mature
+project that had already been burned by them twice:
 
-- **Status rots; dated rulings do not.** "On 2026-08-30 we decided X because Y"
-  stays true forever. "Current phase: 3" is wrong within a week. Keep the
-  append-only rulings log; be sparing with anything that claims present state, and
-  treat any status line you read as a *start date*, not a state.
-- **Never let one doc point at another doc as authoritative.** Chatbot's diagnosed
-  recurring failure is "a pointer problem, not a prose problem" — every doc named
-  another as the source of truth, and the targets drifted. Point at code and at
-  reality. A STATE.md that is mostly an index into other status files is the
-  anti-pattern, not the fix.
+- **Status rots; dated rulings do not.** "On `<date>` we decided X because Y" stays
+  true forever. "Current phase: 3" is wrong within a week. Keep the append-only
+  rulings log; be sparing with anything that claims present state, and treat any
+  status line you read as a *start date*, not a state.
+- **Never let one doc point at another doc as authoritative.** That project's
+  diagnosed recurring failure was "a pointer problem, not a prose problem" — every
+  doc named another as the source of truth, and the targets drifted. Point at code
+  and at reality. A state file that is mostly an index into other status files is
+  the anti-pattern, not the fix.
 
 Updated **at every decision**, not at session end. A successor session inherits
 through it; letting it go stale is a rule violation. Write rulings down when they
 are made, not when the window starts getting tight.
 
 It holds: rulings and their rationale, open questions and investigations, quirks
-learned, work in flight, and questions Justin has already answered.
+learned, work in flight, and questions the owner has already answered.
 
 Pair it with a **compact-instructions** section in `CLAUDE.md` so that when
-compaction does happen, it preserves rulings not yet written to STATE.md, approved
-work not yet executed, the live thread, and pending questions — and drops raw
-output, subagent transcripts, and full file contents.
+compaction does happen, it preserves rulings not yet written to the state record,
+approved work not yet executed, the live thread, and pending questions — and drops
+raw output, subagent transcripts, and full file contents.
 
-Keep the **audit trail separate** from STATE.md (decision point B). Rule of thumb:
-if it changed the world, it goes in the audit trail; if it changed what you *know*,
-it goes in STATE.
+Keep the **audit trail separate** from the state record (decision point B). Rule of
+thumb: if it changed the world, it goes in the audit trail; if it changed what you
+*know*, it goes in the state record.
 
 ## 6. Decision points — resolve these per project
 
 The framework above is universal. These four are not: **decide them deliberately
-and record each as a ruling in STATE.md.** Do not copy another project's answers.
+and record each as a ruling.** Do not copy another project's answers.
 
 **A. May subagents change things, or are they read-only?**
-Read-only in `PC_CleanUp`, because every system change needs Justin's confirmation
-and a subagent cannot obtain it. ARGO's subagents write code freely. Decide by
-asking what a wrong autonomous change costs and whether it is reversible.
+Read-only in a machine-maintenance project, because every system change needs the
+owner's confirmation and a subagent cannot obtain it. A software project's subagents
+may write code freely. Decide by asking what a wrong autonomous change costs and
+whether it is reversible.
 
 **B. What is the audit trail?**
-A git-tracked project's commits *are* the changelog — no extra file needed.
-`PC_CleanUp` keeps a separate `CHANGELOG.md` (date / what changed / how to revert)
-because it is not under working version control and its changes are to a machine,
-not a repo. STATE.md is required either way: rationale is never derivable from
+A git-tracked project's commits *are* the changelog — no extra file needed. A
+project that is not under working version control, or whose changes are to a machine
+rather than a repo, needs a separate `CHANGELOG.md` (date / what changed / how to
+revert). The state record is needed either way: rationale is never derivable from
 diffs.
 
 **C. Does spec/stage machinery apply?**
-ARGO runs spec-as-contract, one stage per session, session prompt files in
-`prompts/`, and acceptance criteria with an evidence walk before a session is
-RESOLVED. That suits planned, staged build-out. `PC_CleanUp` deliberately skipped
-all of it — reactive work has no roadmap to gate against. Skipping it is a valid
-choice; record it as one so a future session knows it was deliberate.
+A staged build-out suits spec-as-contract, one stage per session, session prompt
+files, and acceptance criteria with an evidence walk before a session is resolved.
+Reactive work has no roadmap to gate against and should skip all of it. Skipping is
+a valid choice; record it as one so a future session knows it was deliberate.
 
 **D. Domain hard rules and protected paths.**
-Every project needs its own "never violate" list and its own list of paths that
-look like targets but are working assets. `PC_CleanUp` protects `D:\ClaudeCode\`
-project directories from cleanup; ARGO forbids inventing resume content and bans
-LinkedIn automation. Write yours; do not inherit these.
+Every project needs its own "never violate" list and its own list of paths that look
+like targets but are working assets — model files, media corpora, vendored
+checkouts, live personal data. Write yours; do not inherit another project's.
 
 ---
 
@@ -194,8 +197,8 @@ LinkedIn automation. Write yours; do not inherit these.
 1. Copy the blocks from `CLAUDE-sections-template.md` into the project's
    `CLAUDE.md`, filling every `{{placeholder}}`.
 2. Copy `STATE-template.md` to `docs/STATE.md`.
-3. Resolve decision points A–D and record each as a ruling in the STATE.md rulings
-   log, with its rationale.
+3. Resolve decision points A–D and record each as a ruling in the rulings log, with
+   its rationale.
 4. Record the adoption itself as the first ruling, dated.
 
 ### Retrofit into an ongoing project
@@ -211,24 +214,26 @@ Same, with four differences that matter:
    problem is the failure this step exists to prevent. Delegate the audit — it is a
    bulk read.
 
-   Worked example: `D:\ClaudeCode\Chatbot` already had the brain file, the rulings
-   ledger, the parked-questions file, a working rhythm with review gates, and a
-   context-rotation stop. Its `CLAUDE.md` is persona text, not process. Its docs
-   forbid pointer-docs by name. The correct retrofit there was **one subsection**
-   (the model hierarchy, the only genuine gap) and creating no files at all.
+   Worked example: one project already had the brain file, the rulings ledger, the
+   parked-questions file, a working rhythm with review gates, and a context-rotation
+   stop agreed at a set percentage. Its `CLAUDE.md` was persona text, not process —
+   the working agreement lived elsewhere. Its docs forbade pointer-docs by name. The
+   correct retrofit there was **one subsection** — the model hierarchy, the only
+   genuine gap — and creating no files at all.
 
 2. **Merge, do not clobber.** The project's existing instruction files encode real
    knowledge. Add sections around what is there; resolve conflicts explicitly rather
    than overwriting. Check *which* file is the engineering doc first — it is not
    always `CLAUDE.md`.
 3. **Seed the state record from what already exists** — if step 1 concluded you need
-   one. An ongoing project has history it should start with: past decisions recoverable from git log, existing docs
-   and backlogs, known quirks, current open threads. A retrofitted STATE.md that
-   starts empty throws away the inheritance it exists to preserve. Delegate this
-   excavation to a subagent — it is exactly the kind of bulk read that should never
-   enter the orchestrator's context.
+   one. An ongoing project has history it should start with: past decisions
+   recoverable from git log, existing docs and backlogs, known quirks, current open
+   threads. A retrofitted state file that starts empty throws away the inheritance it
+   exists to preserve. Delegate this excavation to a subagent — it is exactly the
+   kind of bulk read that should never enter the orchestrator's context.
 4. **Note what predates adoption.** Mark the boundary so a future session does not
    read the absence of early rulings as rulings never made.
 
-ARGO's `ORCHESTRATOR_FINAL.md` is the exemplar of a handoff done well: the outgoing
-orchestrator's charter, rulings, and rationale preserved verbatim for its successor.
+A handoff done well preserves the outgoing orchestrator's charter, rulings, and
+rationale verbatim for its successor — inheritance is the whole point of the state
+record, and a handoff is just its largest instance.
