@@ -73,7 +73,7 @@ export ELEVENLABS_API_KEY="sk_..."
 [Environment]::SetEnvironmentVariable('ELEVENLABS_API_KEY', 'sk_...', 'User')
 ```
 
-Also requires **`jq`** (`brew install jq` · `apt install jq` · `winget install jqlang.jq`) and an **audio player** — `afplay` is built into macOS; elsewhere the Step 4 block auto-detects `ffplay`, `mpv`, `mpg123`, or `cvlc`, and falls back to PowerShell on Windows. The two voice IDs are set in the bash block below — change those lines to swap voices.
+Also requires **`jq`** (`brew install jq` · `apt install jq` · `winget install jqlang.jq`) and an **audio player** — `afplay` is built into macOS; elsewhere `speak-api.sh` auto-detects `ffplay`, `mpv`, `mpg123`, or `cvlc`, and falls back to PowerShell on Windows. The two voice IDs are set at the top of `speak-api.sh`, next to this command — change those lines to swap voices.
 
 ---
 
@@ -99,7 +99,7 @@ Rules:
 - **Condense, don't amputate.** Preserve each distinct fact, decision, number, and outcome as its own beat — do **not** collapse several separate points into one just to hit a lower sentence count. This is the whole point of the tiers: dense input is *allowed* to produce a longer read.
 - Strip code blocks, file paths, tool output, and other typed-only content before re-casting.
 - **Stay in character.** A "laid back girl" says *"okay so I just..."*; a "gruff sailor" says *"aye, the deed's done"*; a "deadpan comic" says *"well, that happened."* Lexicon, rhythm, and word choice must reflect the personality.
-- **Respect the ceiling.** If the source has more worthwhile points than fit under the tier's char ceiling, keep the highest-value ones and add a brief "there's more if you want it" rather than overflow. The bash block in Step 4 will refuse to send anything over 1800 chars.
+- **Respect the ceiling.** If the source has more worthwhile points than fit under the tier's char ceiling, keep the highest-value ones and add a brief "there's more if you want it" rather than overflow. `speak-api.sh` will refuse to send anything over 1800 chars.
 - If the previous response was already a single conversational sentence, lightly re-cast it in the personality (brief) regardless of tier — don't pad it out.
 
 If there is no prior assistant message (this is the first turn), reply once with `Nothing to speak yet — invoke /speak-api after I've responded.` and stop.
@@ -112,7 +112,7 @@ Audio tags are the heart of an expressive v3 read — **lean on them heavily.** 
 
 1. **The vocabulary is open, not a fixed list.** v3 *interprets* the words inside `[...]` as stage directions and performs them — the bracket text is never spoken aloud. So the palette below is a launch pad, not a whitelist: if you can describe a delivery in two or three words, you can tag it — `[muttering under their breath]`, `[barely holding back a grin]`, `[suddenly serious]`, `[warming to the idea]` all work. Invent apt tags freely.
 2. **Tags are voice-dependent — keep them in the persona's lane.** ElevenLabs' own guidance: *"some tags work well with certain voices while others may not,"* and the voice you pick matters more than any tag. A dry, crisp voice can `[wry]`, `[clipped]`, `[amused]`, `[conspiratorial]`; it will *not* convincingly `[sobbing]` or `[manic screaming]`. Choose tags the chosen voice would actually produce, and don't whiplash between registers unless the content truly turns. This applies doubly here: the `--m` and `--f` voices have different ranges, so tag for the one the flag selected.
-3. **Stability sets how hard tags hit.** This script sends `stability: 0.0` = **Creative** — the most expressive setting, so tags land hard and emotion swings wide (occasionally at the cost of slight voice drift). `0.5` = **Natural** reins that in, holding the voice's identity more tightly while still performing the cues. `1.0` = **Robust** is the steadiest read but the *least responsive to tags* — never use it when tags are the point. Creative is the default here because expressive tagging is the whole point of this command; if a particular voice drifts too much, nudge the one `stability:` line in Step 4 up toward Natural.
+3. **Stability sets how hard tags hit.** This script sends `stability: 0.0` = **Creative** — the most expressive setting, so tags land hard and emotion swings wide (occasionally at the cost of slight voice drift). `0.5` = **Natural** reins that in, holding the voice's identity more tightly while still performing the cues. `1.0` = **Robust** is the steadiest read but the *least responsive to tags* — never use it when tags are the point. Creative is the default here because expressive tagging is the whole point of this command; if a particular voice drifts too much, nudge `STABILITY` in `speak-api.sh` up toward Natural.
 
    v3 is also most consistent on prompts longer than **~250 characters**; very short briefs read flatter and skip tags more often — an accepted trade for speed, but a reason not to over-trim.
 
@@ -190,140 +190,28 @@ Audio tags are the heart of an expressive v3 read — **lean on them heavily.** 
 
 > [confident][measured] Right then. The kit's wired and humming along nicely. [short pause] [softly] Cleaner integration than I'd anticipated, in fact — [wry] rather pleased with it. [knowingly] Do call if anything wants tweaking. [amused] Mm.
 
-### Step 3 — Write the tagged summary to disk
+### Steps 3 and 4 — Write the summary and play it, in one message
 
-Write the fully tagged summary — and **nothing else** (no preamble, no markdown, no surrounding quotes) — to the temp file below using the **Write** tool. The Write tool needs a **platform-absolute** path:
+Make **both tool calls in the same message**, Write first. Tool calls in one message run in order, so the script sees the fresh file, and the voice starts one round trip sooner.
 
-| Platform | Path to write |
-|---|---|
-| macOS / Linux | `/tmp/claude_speak_api_input.txt` |
-| Windows | `%LOCALAPPDATA%\Temp\claude_speak_api_input.txt` — expand it, e.g. `C:\Users\<you>\AppData\Local\Temp\claude_speak_api_input.txt` |
+1. **Write** the fully tagged summary — and **nothing else** (no preamble, no markdown, no surrounding quotes) — to the temp file below. The Write tool needs a **platform-absolute** path:
 
-On Windows that path is the *same file* Git Bash sees as `/tmp/claude_speak_api_input.txt` (confirm with `cygpath -w /tmp` if your setup differs). Step 4 resolves it either way.
+   | Platform | Path to write |
+   |---|---|
+   | macOS / Linux | `/tmp/claude_speak_api_input.txt` |
+   | Windows | `%LOCALAPPDATA%\Temp\claude_speak_api_input.txt` — expand it, e.g. `C:\Users\<you>\AppData\Local\Temp\claude_speak_api_input.txt` |
 
-### Step 4 — Send to ElevenLabs and play
+   On Windows that path is the *same file* Git Bash sees as `/tmp/claude_speak_api_input.txt`; the script resolves it either way.
 
-**Set the Bash tool's `timeout` parameter to `600000` on this call.** This is required, not
-optional. Every player in the fallback chain below blocks for the full length of the audio
-— `afplay`, `ffplay`, `mpv`, `mpg123`, `cvlc`, and the PowerShell fallback all wait out the
-read — so the tool call must outlast it, and the Bash tool defaults to only **120 seconds**.
-At roughly 15.7 characters of tagged text per second of speech, the tiers land like this:
+2. **Bash**, with the voice letter resolved in Step 1 (`f` or `m`) — there is deliberately no default, and the script refuses anything else:
 
-| Tier | Char cap | Audio length | Margin under the 120s default |
-|---|---|---|---|
-| `--brief` | 450 | ~30s | comfortable |
-| `--medium` | 950 | ~60s | comfortable |
-| `--detailed` | 1800 | ~115s | **~5 seconds — razor thin** |
+   ```bash
+   bash ~/.claude/commands/speak-api.sh m
+   ```
 
-A `--detailed` read sits within a few seconds of the default, so ordinary variance cuts it
-off mid-sentence — and the audio is generated and billed in full before playback truncates,
-so you pay for seconds you never hear. More importantly, if `ABS_MAX_CHARS` or the tier
-caps are ever raised, the default starts silently truncating every long read. `600000` is
-the tool's maximum and covers any ceiling this command could reasonably use.
+   **Set the Bash tool's `timeout` parameter to `600000` on this call.** The player blocks for the whole read, and the Bash tool's 120-second default would cut a `--detailed` read (~115 s of audio) off mid-sentence after it has been billed in full.
 
-Replace `UNSET` on the marked `VOICE=` line with `f` or `m` to match the flag resolved in Step 1, then run the block as written. There is deliberately **no default** — left as `UNSET` the block aborts rather than guessing a voice:
-
-```bash
-set -euo pipefail
-
-# ── Replace UNSET with f or m to match the flag from Step 1 ─────────────
-VOICE=UNSET
-# ── Left as UNSET this block aborts by design — never guess a voice. ────
-# Voice IDs — change these to swap voices (browse: https://elevenlabs.io/app/voice-library).
-VOICE_ID_F="u8ADrbquiJqufR9XMtb8"   # laid back friendly Australian girl
-VOICE_ID_M="lF0PpOQjCl3K89rt0U83"   # young professional British male ("Q")
-
-case "$VOICE" in
-  f) VOICE_ID="$VOICE_ID_F" ;;
-  m) VOICE_ID="$VOICE_ID_M" ;;
-  *) echo "VOICE must be 'f' or 'm' (got '$VOICE')." >&2; exit 1 ;;
-esac
-
-: "${ELEVENLABS_API_KEY:?ELEVENLABS_API_KEY is not set — see 'Required setup' in this command. On Windows, set it for the User scope and start a NEW Claude Code session.}"
-command -v jq >/dev/null || { echo "jq is required — brew install jq / apt install jq / winget install jqlang.jq" >&2; exit 1; }
-
-# Resolve the input file written in Step 3 (Windows temp differs from /tmp on some setups).
-IN=/tmp/claude_speak_api_input.txt
-if [ ! -s "$IN" ] && [ -n "${LOCALAPPDATA:-}" ]; then
-  ALT="$(cygpath -u "$LOCALAPPDATA" 2>/dev/null || echo "")/Temp/claude_speak_api_input.txt"
-  if [ -s "$ALT" ]; then IN="$ALT"; fi
-fi
-OUT="$(dirname "$IN")/claude_speak_api_output.mp3"
-
-[ -s "$IN" ] || { echo "Input file $IN is empty or missing — did Step 3 write it?" >&2; exit 1; }
-
-# Hard credit backstop — ElevenLabs bills per character (audio tags count too).
-# Refuse to send anything longer than the detailed-tier ceiling, regardless of tier.
-ABS_MAX_CHARS=1800
-CHARS=$(wc -m < "$IN" | tr -d '[:space:]')
-if [ "$CHARS" -gt "$ABS_MAX_CHARS" ]; then
-  echo "Refusing to send: input is ${CHARS} characters, over the ${ABS_MAX_CHARS}-char credit cap." >&2
-  echo "Re-run with --brief or --medium, or raise ABS_MAX_CHARS below if this was intentional." >&2
-  exit 1
-fi
-
-# Build JSON payload safely from the input text (jq -Rs handles all escaping)
-PAYLOAD=$(jq -Rs '{
-  text: .,
-  model_id: "eleven_v3",
-  voice_settings: {
-    stability: 0.0,
-    similarity_boost: 0.75,
-    style: 0.0,
-    use_speaker_boost: true
-  }
-}' < "$IN")
-
-HTTP=$(curl -sS -o "$OUT" -w '%{http_code}' -X POST \
-  "https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}" \
-  -H "xi-api-key: ${ELEVENLABS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -H "Accept: audio/mpeg" \
-  -d "$PAYLOAD")
-
-if [ "$HTTP" != "200" ]; then
-  echo "ElevenLabs returned HTTP $HTTP. Body:" >&2
-  cat "$OUT" >&2
-  exit 1
-fi
-
-if ! file "$OUT" | grep -qiE 'audio|mpeg|mp3'; then
-  echo "Response was not audio. Body:" >&2
-  cat "$OUT" >&2
-  exit 1
-fi
-
-# Print the read length before blocking on it. If playback ever is cut short, this line
-# makes it obvious from the transcript (audio longer than the call) instead of looking
-# like a silent failure. Non-fatal on any platform that has neither tool.
-afinfo "$OUT" 2>/dev/null | grep -i 'estimated duration' \
-  || ffprobe -v error -show_entries format=duration -of default=nw=1 "$OUT" 2>/dev/null \
-  || true
-
-# Play it — first available player wins (macOS → cross-platform → Windows fallback).
-if command -v afplay >/dev/null 2>&1; then
-  afplay "$OUT"
-elif command -v ffplay >/dev/null 2>&1; then
-  ffplay -nodisp -autoexit -loglevel error "$OUT"
-elif command -v mpv >/dev/null 2>&1; then
-  mpv --really-quiet --no-video "$OUT"
-elif command -v mpg123 >/dev/null 2>&1; then
-  mpg123 -q "$OUT"
-elif command -v cvlc >/dev/null 2>&1; then
-  cvlc --play-and-exit --intf dummy "$OUT" >/dev/null 2>&1
-elif command -v powershell.exe >/dev/null 2>&1; then
-  WIN_OUT="$(cygpath -w "$OUT" 2>/dev/null || echo "$OUT")"
-  powershell.exe -NoProfile -Command "
-    Add-Type -AssemblyName presentationCore
-    \$p = New-Object System.Windows.Media.MediaPlayer
-    \$p.Open([uri]'$WIN_OUT'); Start-Sleep -Milliseconds 700
-    \$d = \$p.NaturalDuration; if (\$d.HasTimeSpan) { \$p.Play(); Start-Sleep -Seconds ([int]\$d.TimeSpan.TotalSeconds + 1) }
-    \$p.Close()"
-else
-  echo "No audio player found. Install ffmpeg (ffplay), mpv, or mpg123. Audio saved at: $OUT" >&2
-  exit 1
-fi
-```
+   The script streams the summary from ElevenLabs into `ffplay` (or `mpv` / `mpg123`), so the voice starts about a second after the call instead of after the whole render. It enforces the 1800-character credit cap, prints the read's length, and consumes the input file, so a Write that failed can never replay the previous summary. Voice IDs, model and stability are set at its top.
 
 ### Step 5 — Confirm
 

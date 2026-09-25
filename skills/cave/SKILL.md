@@ -27,11 +27,12 @@ Use the most recent assistant message before `/cave` was invoked. Skip past /cav
 
 ## Step 2: Read his personality
 
-Read `{{CAVE_DIR}}/PERSONALITY.md` in full, every run. It sets his mood for how the work went, his casting, what he calls the listener, his moves, his vocabulary, his delivery tags, and example reads. Follow it for everything about how he sounds.
+Read both files **in one message** (two Read calls side by side), every run:
 
-If the file is missing, reply `Cave's personality file is missing: {{CAVE_DIR}}/PERSONALITY.md` and stop. Don't improvise him.
+- `{{CAVE_DIR}}/PERSONALITY.md`, in full. It sets his mood for how the work went, his casting, what he calls the listener, his moves, his vocabulary, his delivery tags, and example reads. Follow it for everything about how he sounds.
+- `{{CAVE_DIR}}/recent-reads.txt`, his last eight reads with the newest last. The "Keep him fresh" rules in PERSONALITY.md are checked against it.
 
-Then read `{{CAVE_DIR}}/recent-reads.txt`, his last eight reads with the newest last. The "Keep him fresh" rules in PERSONALITY.md are checked against it. If the file doesn't exist yet, there's no history to avoid.
+If PERSONALITY.md is missing, reply `Cave's personality file is missing: {{CAVE_DIR}}/PERSONALITY.md` and stop. Don't improvise him. If recent-reads.txt doesn't exist yet, there's no history to avoid.
 
 ## Step 3: Write the read
 
@@ -53,109 +54,39 @@ Tag it following the delivery tags in PERSONALITY.md.
 | detailed | `--detailed` | 9–14 sentences | 2–3 | 1500 |
 | auto | no flag | the smallest tier that fits the gist plus a bit, usually brief or medium | | 1500 |
 
-## Step 4: Write the read to disk
+## Steps 4 and 5: Write the read and play it, in one message
 
-Use the **Write** tool to write the tagged read, and nothing else (no quotes, no preamble), to the temp file below. The Write tool needs a platform-absolute path:
+Make **both tool calls in the same message**, Write first. They run in order, so the script sees the fresh file, and the user hears Cave one round trip sooner.
 
-| Platform | Path to write |
-|---|---|
-| macOS / Linux | `/tmp/claude_cave_input.txt` |
-| Windows | `%LOCALAPPDATA%\Temp\claude_cave_input.txt`, expanded, e.g. `C:\Users\<you>\AppData\Local\Temp\claude_cave_input.txt` |
+1. **Write** the tagged read, and nothing else (no quotes, no preamble), to the temp file below. The Write tool needs a platform-absolute path:
 
-On Windows that is the same file Git Bash sees as `/tmp/claude_cave_input.txt`. Step 5 resolves it either way.
+   | Platform | Path to write |
+   |---|---|
+   | macOS / Linux | `/tmp/claude_cave_input.txt` |
+   | Windows | `%LOCALAPPDATA%\Temp\claude_cave_input.txt`, expanded, e.g. `C:\Users\<you>\AppData\Local\Temp\claude_cave_input.txt` |
 
-## Step 5: Send it to ElevenLabs, log it, and play it
+   On Windows that is the same file Git Bash sees as `/tmp/claude_cave_input.txt`. The script resolves it either way.
 
-**Set the Bash tool's `timeout` to `600000`.** Every player in the block waits out the whole read. The 120-second default would cut off a long read after it has already been billed.
+2. **Bash**, with `timeout` set to `600000`:
 
-```bash
-set -euo pipefail
+   ```bash
+   bash ~/.claude/skills/cave/speak.sh
+   ```
 
-VOICE_ID="{{CAVE_VOICE_ID}}"   # your Cave voice, see Voice below
-STABILITY=0.0                  # 0.0 Creative (default) · 0.5 Natural if a read drifts
-CAVE_DIR="$(cygpath -u '{{CAVE_DIR}}' 2>/dev/null || echo '{{CAVE_DIR}}')"
-
-: "${ELEVENLABS_API_KEY:?ELEVENLABS_API_KEY is not set. Set it in your shell profile (on Windows, at user scope) and start a new Claude Code session.}"
-command -v jq >/dev/null || { echo "jq is required: brew install jq / apt install jq / winget install jqlang.jq" >&2; exit 1; }
-
-# Resolve the input file written in Step 4 (Windows temp differs from /tmp on some setups).
-IN=/tmp/claude_cave_input.txt
-if [ ! -s "$IN" ] && [ -n "${LOCALAPPDATA:-}" ]; then
-  ALT="$(cygpath -u "$LOCALAPPDATA" 2>/dev/null || echo "")/Temp/claude_cave_input.txt"
-  if [ -s "$ALT" ]; then IN="$ALT"; fi
-fi
-OUT="$(dirname "$IN")/claude_cave_output.mp3"
-[ -s "$IN" ] || { echo "Input file $IN is empty or missing. Did Step 4 write it?" >&2; exit 1; }
-
-# Credit backstop: ElevenLabs bills per character, tags included.
-ABS_MAX_CHARS=1800
-CHARS=$(wc -m < "$IN" | tr -d '[:space:]')
-if [ "$CHARS" -gt "$ABS_MAX_CHARS" ]; then
-  echo "Refusing to send: ${CHARS} characters, over the ${ABS_MAX_CHARS}-character cap. Rewrite it shorter." >&2
-  exit 1
-fi
-
-# Send the JSON through stdin with non-ASCII escaped (jq -a). If it's passed as a curl
-# argument instead, an em-dash or ellipsis reaches ElevenLabs as invalid UTF-8 on Windows (HTTP 400).
-HTTP=$(jq -a -Rs --argjson stab "$STABILITY" '{
-  text: ., model_id: "eleven_v3",
-  voice_settings: {stability: $stab, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true}
-}' < "$IN" | curl -sS -o "$OUT" -w '%{http_code}' -X POST \
-  "https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128" \
-  -H "xi-api-key: ${ELEVENLABS_API_KEY}" -H "Content-Type: application/json" -H "Accept: audio/mpeg" \
-  --data-binary @-)
-if [ "$HTTP" != "200" ]; then
-  echo "ElevenLabs returned HTTP $HTTP:" >&2; cat "$OUT" >&2; echo >&2; exit 1
-fi
-
-# Log the read for "Keep him fresh" in PERSONALITY.md: keep the last eight, newest last.
-mkdir -p "$CAVE_DIR"
-LOG="$CAVE_DIR/recent-reads.txt"
-{ [ -f "$LOG" ] && tail -n 7 "$LOG"; printf '%s  %s\n' "$(date +%F)" "$(tr '\n' ' ' < "$IN")"; } > "$LOG.tmp"
-mv "$LOG.tmp" "$LOG"
-
-# Print the length before playback blocks, so a read that gets cut off is obvious. Non-fatal.
-afinfo "$OUT" 2>/dev/null | grep -i 'estimated duration' \
-  || ffprobe -v error -show_entries format=duration -of default=nw=1 "$OUT" 2>/dev/null \
-  || true
-
-# Play it: first available player wins (macOS, then cross-platform, then a Windows fallback).
-if command -v afplay >/dev/null 2>&1; then
-  afplay "$OUT"
-elif command -v ffplay >/dev/null 2>&1; then
-  ffplay -nodisp -autoexit -loglevel error "$OUT"
-elif command -v mpv >/dev/null 2>&1; then
-  mpv --really-quiet --no-video "$OUT"
-elif command -v mpg123 >/dev/null 2>&1; then
-  mpg123 -q "$OUT"
-elif command -v cvlc >/dev/null 2>&1; then
-  cvlc --play-and-exit --intf dummy "$OUT" >/dev/null 2>&1
-elif command -v powershell.exe >/dev/null 2>&1; then
-  WIN_OUT="$(cygpath -w "$OUT" 2>/dev/null || echo "$OUT")"
-  powershell.exe -NoProfile -Command "
-    Add-Type -AssemblyName presentationCore
-    \$p = New-Object System.Windows.Media.MediaPlayer
-    \$p.Open([uri]'$WIN_OUT'); Start-Sleep -Milliseconds 700
-    \$d = \$p.NaturalDuration; if (\$d.HasTimeSpan) { \$p.Play(); Start-Sleep -Seconds ([int]\$d.TimeSpan.TotalSeconds + 1) }
-    \$p.Close()"
-else
-  echo "No audio player found. Install ffmpeg (ffplay), mpv, or mpg123. Audio saved at: $OUT" >&2
-  exit 1
-fi
-```
+   The script streams the read from ElevenLabs into a player that reads stdin (`ffplay`, `mpv` or `mpg123`), so Cave starts talking about a second after the call; with none of those it downloads first, then plays. It blocks until he finishes, and the 120-second default timeout would cut off a long read that has already been billed. It enforces the character cap, logs the read to `recent-reads.txt`, prints the read's length, and consumes the input file, so a Write that failed can never replay the previous read. The voice, model and stability are set at the top of the script.
 
 ## Step 6: Confirm
 
-Reply with one short line naming the tier and the Cave you played, e.g. `Cave has spoken · auto→brief · 1950s showman.` Don't repeat the read; the user just heard it. If the block printed an error, report it in one line.
+Reply with one short line naming the tier and the Cave you played, e.g. `Cave has spoken · auto→brief · 1950s showman.` Don't repeat the read; the user just heard it. If the script printed an error, report it in one line.
 
 ## Voice
 
-`VOICE_ID` in the Step 5 block is the ElevenLabs voice Cave speaks in. Any voice your API key can use will work; a booming mid-century pitchman suits him best. PERSONALITY.md bans accent and character-voice tags, so the voice itself has to carry the likeness.
+`VOICE_ID` at the top of `speak.sh` is the ElevenLabs voice Cave speaks in. Any voice your API key can use will work; a booming mid-century pitchman suits him best. PERSONALITY.md bans accent and character-voice tags, so the voice itself has to carry the likeness.
 
 The original is an Instant Voice Clone of a friend's Cave impression, made with that friend's permission, and it isn't shared. If you clone one, clone a voice you have the right to use, not the game's voice actor.
 
 - **Model:** `eleven_v3`, which the audio tags require.
-- **Stability:** `0.0` (Creative). In testing it kept his likeness as well as `0.5` (Natural) did, with more range. If a read drifts off his voice, set `STABILITY=0.5` in the block.
+- **Stability:** `0.0` (Creative). In testing it kept his likeness as well as `0.5` (Natural) did, with more range. If a read drifts off his voice, set `STABILITY=0.5` in `speak.sh`.
 
 ## What not to do
 
