@@ -1,8 +1,8 @@
 # Claude Commands
 
-A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, a state-of-the-project coldstart brief that catches you up on where past sessions left off, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, two ways to have Claude read its answers aloud, and a plain-English rewrite powered by a local LLM — plus an [orchestrator mode](#orchestrator-framework) that keeps long sessions coherent by delegating the heavy lifting, and a [library of portable engineering memories](#memories) any coding agent can ingest.
+A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, a state-of-the-project coldstart brief that catches you up on where past sessions left off, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, two ways to have Claude read its answers aloud (plus a third, as [Cave Johnson](#cave---brief--medium--detailed-direction)), and a plain-English rewrite powered by a local LLM — plus an [orchestrator mode](#orchestrator-framework) that keeps long sessions coherent by delegating the heavy lifting, and a [library of portable engineering memories](#memories) any coding agent can ingest.
 
-The files in `commands/` are **templates** — they contain `{{PLACEHOLDER}}` tokens for everything specific to you (GitHub username, repos, Slack channels, local paths). Nothing here assumes a particular company or codebase. The bundled `/get-started` installer interviews you, verifies your credentials, fills in the templates, and installs working commands into `~/.claude/`.
+The files in `commands/` and `skills/` are **templates** — they contain `{{PLACEHOLDER}}` tokens for everything specific to you (GitHub username, repos, Slack channels, local paths). Nothing here assumes a particular company or codebase. The bundled `/get-started` installer interviews you, verifies your credentials, fills in the templates, and installs working commands into `~/.claude/`.
 
 ## Quick start
 
@@ -64,6 +64,12 @@ Reads Claude's most recent response aloud using **[Kokoro](https://github.com/he
 ### `/speak-api --m|--f [--brief|--medium|--detailed] [personality]`
 Premium narration via **ElevenLabs v3**: summarizes the last response and performs it with expressive inline audio tags (`[wry]`, `[sighs]`, `[short pause]`, `[realization dawning]`…). The **voice flag is required** — `--f` is a laid-back Australian female voice, `--m` a crisp British "Q from James Bond" — and matching is on exact tokens, so `--m` is always the male voice and `--medium` always the length tier. Pass any personality ("gruff sailor", "deadpan comedian") to recolor the read. Length auto-scales to the response or is forced with a flag, and a hard 1,800-character cap protects your ElevenLabs credits. Both voice IDs are one-line changes in the command file.
 **Needs:** `ELEVENLABS_API_KEY` in your environment (free tier works), `jq`, and an audio player — `afplay` on macOS, otherwise auto-detected (`ffplay`/`mpv`/`mpg123`/`cvlc`, or a PowerShell fallback on Windows).
+
+### `/cave [--brief|--medium|--detailed] [direction]`
+Has Cave Johnson, founder and CEO of Aperture Science, read back what just happened. The gist of the last response is rewritten as one of his pre-recorded announcements to a test subject and performed through ElevenLabs v3. His mood follows the outcome: a 1950s showman when it worked, a broke 1970s Cave when it half-worked, a moon-rock-poisoned 1980s Cave when it failed. The lab boys take the blame, Greg corrects him off mic, and anything you have to do next survives the jokes. It keeps a log of his last eight reads so his openers, bits, and sign-off don't repeat. Any text after the flag is a stage direction (`/cave furious`, `/cave bring up Black Mesa`).
+
+It's a skill rather than a command, so Claude also runs it when you ask to hear something in Cave's voice. The mechanics are in `skills/cave/SKILL.md`. Who he is lives in a separate [`PERSONALITY.md`](cave-setup/PERSONALITY.md) that's read on every run, so you can retune him without touching the skill. Length tiers and the 1,800-character credit cap match `/speak-api`.
+**Needs:** `ELEVENLABS_API_KEY`, `jq`, an audio player, and an ElevenLabs voice for Cave. Any voice your key can use works. The original is a private clone of a friend's impression that isn't shared, so bring your own. If you clone one, use a voice you have the right to, not the game's voice actor.
 
 ### `/claudish [optional text]`
 Rewrites Claude's last response — or any text you pass it — into plain English using a **local model via [ollama](https://ollama.com)**: free, private, no API tokens spent, and the text never leaves your machine. Good for turning a dense technical answer into something you can forward to a non-engineer, and a surprisingly sharp check on your own explanations: anything that survives being restated in simple words probably holds up. The rewrite is done entirely by the local model — the command is explicitly forbidden from quietly substituting a Claude-authored one, so if ollama is down you get an error instead of a silent, billed fallback.
@@ -177,6 +183,8 @@ The script's default model (`gemma3:4b`, 3.3 GB) is chosen to fit a 16 GB laptop
 
 ```
 commands/        command templates with {{PLACEHOLDER}} tokens — installed (filled-in) by /get-started
+skills/          skill templates, same idea, installed to ~/.claude/skills (currently /cave)
+cave-setup/      Cave Johnson's PERSONALITY.md, installed next to his read log for /cave
 memories/        portable, loosely coupled memories any coding agent can ingest — see memories/README.md
 Orchestrator Framework/   the orchestrator writeup, the CLAUDE.md and STATE.md templates, and the
                           tier-named worker agents (installed to ~/.claude/agents), used by /orchestrator

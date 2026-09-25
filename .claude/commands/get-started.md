@@ -6,7 +6,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Bash(ls:*), Bash(echo:*), Bash(test:*), 
 
 # /get-started — command installer & wiring assistant
 
-You are setting up this repository's Claude Code commands for the current user. The files under `commands/` are **templates**: they contain `{{PLACEHOLDER}}` tokens for everything specific to a person, team, or codebase. Your job is to gather the values, **verify the user actually has the required credentials and connections**, fill the templates, and install working copies into `~/.claude/commands/` (and `~/.claude/workflows/`). A command whose required prerequisites fail verification must NOT be installed — report what is missing and how to fix it instead.
+You are setting up this repository's Claude Code commands for the current user. The files under `commands/` are **templates**: they contain `{{PLACEHOLDER}}` tokens for everything specific to a person, team, or codebase. Your job is to gather the values, **verify the user actually has the required credentials and connections**, fill the templates, and install working copies into `~/.claude/commands/` (and `~/.claude/workflows/`; the one skill, `cave`, goes to `~/.claude/skills/`). A command whose required prerequisites fail verification must NOT be installed — report what is missing and how to fix it instead.
 
 Optional pre-selection from the user (may be empty): **$ARGUMENTS** — if non-empty, treat it as the list of commands to install and skip the selection question.
 
@@ -15,7 +15,7 @@ Work conversationally but efficiently: batch your detection commands, use AskUse
 ## Step 0 — Locate the repo and sanity-check
 
 1. Resolve the repo root: `git rev-parse --show-toplevel` (fall back to cwd). Verify `commands/` exists there and contains the template `.md` files. If not, stop: tell the user to `cd` into their clone of this repo and re-run `/get-started`.
-2. `mkdir -p ~/.claude/commands ~/.claude/workflows ~/.claude/agents` so installs can't fail on missing dirs.
+2. `mkdir -p ~/.claude/commands ~/.claude/workflows ~/.claude/agents ~/.claude/skills` so installs can't fail on missing dirs.
 
 ## Step 1 — What's on offer
 
@@ -31,6 +31,7 @@ Present this menu (with AskUserQuestion, multiSelect, unless $ARGUMENTS already 
 | `slack-updates` | Read-only spoken-style brief of Slack channels you choose to track | Slack MCP connected, your Slack member ID |
 | `speak` | Reads the last response aloud with local Kokoro TTS (free, offline) | local Kokoro install — see `kokoro-setup/KOKORO_SETUP.md` |
 | `speak-api` | Reads a summary of the last response aloud via ElevenLabs v3 with expressive audio tags; a required `--f`/`--m` flag picks the female AU or male UK voice | `ELEVENLABS_API_KEY` env var, `jq`, an audio player (`afplay` on macOS, else `ffplay`/`mpv`/`mpg123`/`cvlc`) |
+| `cave` | A skill, not a command: rewrites the last response as a Cave Johnson (Portal 2) announcement and performs it via ElevenLabs v3 in a voice you choose | `ELEVENLABS_API_KEY` env var, `jq`, an audio player, an ElevenLabs voice ID for Cave |
 | `claudish` | Rewrites the last response into plain English using a local ollama model — free, private, no API tokens | ollama installed and running with one model pulled, `jq` — see `ollama-setup/OLLAMA_SETUP.md` |
 | `memorize` | Generalizes a project memory into this repo's shared `memories/` library — audits coupling, restructures, drafts for review | a local clone of this repo, kept at a stable path (it *is* the library) |
 
@@ -42,7 +43,8 @@ Run in parallel where possible; record every result:
 - `gh auth status` and `gh api user -q .login` → proposed **{{GITHUB_USERNAME}}** (confirm with the user — some people have separate work/personal GitHub accounts; the one that matters is the one with access to the repo they review in)
 - `command -v acli`, `command -v jira`, `command -v python3`, `command -v jq`, `command -v afplay`
 - `test -n "$ELEVENLABS_API_KEY" && echo set || echo missing` — on Windows also check the persistent user scope, which the current shell may not have inherited: `[Environment]::GetEnvironmentVariable('ELEVENLABS_API_KEY','User')`
-- audio player for `speak-api`: `command -v afplay ffplay mpv mpg123 cvlc` — any one is enough
+- audio player for `speak-api` and `cave`: `command -v afplay ffplay mpv mpg123 cvlc` — any one is enough (on Windows, `powershell.exe` is the fallback)
+- `cave`: whether `~/.claude/cave/PERSONALITY.md` already exists (a previous install, possibly edited), and `git config user.name` as a proposed `{{USER_NAME}}`
 - Slack MCP: use ToolSearch with query `select:mcp__claude_ai_Slack__slack_read_channel`. If it resolves, Slack is connected. If not, the fix is: run `/mcp` and connect "claude.ai Slack".
 - Kokoro: check the conventional spots (`~/ToolboxRepos/kokoro`, `~/Tools/kokoro`, `~/kokoro`) for a dir containing both `.venv/bin/python` and `speak.py`.
 - `history.py` for `coldstart`: it ships in this repo at `<repo>/coldstart-setup/history.py`. Confirm it is present and that `python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read())' <path>` parses it.
@@ -69,6 +71,9 @@ Only ask for what the selected commands actually need. The full placeholder map:
 | `{{HISTORY_SCRIPT}}` | coldstart | detected, never ask: the absolute path the sidecar is installed to in Step 5 — `~/.claude/bin/history.py`, expanded. Do **not** point it at the copy inside the clone; the clone can move or be deleted and the installed command would silently lose its history search. |
 | `{{CLAUDISH_SCRIPT}}` | claudish | detected candidate or ask: the absolute path to `claudish.sh` (shipped in `ollama-setup/`). Validate the file exists and `bash -n <path>` parses. If ollama isn't set up and they want `/claudish`, offer two paths: (a) you perform the setup now by following `ollama-setup/OLLAMA_SETUP.md` in this repo — it measures their hardware (GPU VRAM / unified memory / RAM) and sizes the model to match, which matters a lot here — or (b) they do it later and re-run `/get-started`. |
 | `{{ORCHESTRATOR_FRAMEWORK_PATH}}` | orchestrator | detected, never ask: the `Orchestrator Framework/` directory in the repo root resolved in Step 0, as an absolute path. It ships with the repo. If the user later moves the framework elsewhere (e.g. alongside their projects rather than in the clone), they re-run `/get-started` — the command still works with a dead path, it just loses the full writeup and falls back to the tier rule it carries inline. |
+| `{{CAVE_DIR}}` | cave | detected, never ask: `~/.claude/cave`, expanded to an absolute path. It holds `PERSONALITY.md` (who Cave is, which the user can edit) and `recent-reads.txt` (his last eight reads, written by the skill). |
+| `{{CAVE_VOICE_ID}}` | cave | ask: the ElevenLabs voice ID Cave should speak in. Where to find one: elevenlabs.io → **Voices** → a voice's **⋮** → **Copy voice ID**. Any voice their key can use works; a booming mid-century pitchman suits him. If they want to clone one, point them at ElevenLabs' Instant Voice Cloning and say plainly that it must be a voice they have the right to use (their own, or a consenting friend's), not the game's voice actor. |
+| `{{USER_NAME}}` | cave | ask, proposing the first name from `git config user.name`: what Cave calls them when he drops "test subject" (at most once per read). Substituted into `PERSONALITY.md`, not the skill. |
 | `{{MEMORIES_REPO}}` | memorize | detected, never ask: the repo root resolved in Step 0. Confirm with the user that their clone will stay at this path — `/memorize` writes drafts into it, so if the clone moves they must re-run `/get-started`. |
 
 Use absolute paths everywhere (expand `~` before substitution).
@@ -86,6 +91,7 @@ For each selected command, evaluate its gate. **Required failures block installa
 - `slack-updates` — required: Slack MCP tools resolvable via ToolSearch; a plausible `{{SLACK_USER_ID}}`; at least one tracked channel resolved.
 - `speak` — required: validated `{{KOKORO_DIR}}`; `afplay` present (macOS).
 - `speak-api` — required: `ELEVENLABS_API_KEY` resolvable (key from elevenlabs.io → Profile → API Key; if missing, `export ELEVENLABS_API_KEY="sk_..."` in the shell profile, or on Windows `[Environment]::SetEnvironmentVariable('ELEVENLABS_API_KEY','sk_...','User')`, then start a **new** Claude Code session — a running session keeps its old environment); `jq`; at least one audio player from `afplay`/`ffplay`/`mpv`/`mpg123`/`cvlc`. If the key is only set for the persistent user scope and not yet visible to the running shell, install it but report status as `ready after restart`, not `ready`.
+- `cave` — required: the same `ELEVENLABS_API_KEY`, `jq`, and audio-player checks as `speak-api` (including `ready after restart` when the key is only at user scope); `<repo>/skills/cave/SKILL.md` and `<repo>/cave-setup/PERSONALITY.md` present; and the voice ID resolves — `curl -sS -o /dev/null -w '%{http_code}' -H "xi-api-key: $ELEVENLABS_API_KEY" https://api.elevenlabs.io/v1/voices/<id>`. `200` passes. `400`/`404` means a wrong ID: block and ask again. A `401` naming a missing permission means the key is scoped without voice read access: install with a warning that the ID is unverified. If the key isn't visible to the running shell yet, skip the voice check and say so.
 - `memorize` — required: `<repo>/memories/` exists in the clone (it ships with the repo, so a failure means a broken or partial clone).
 - `claudish` — required: a validated `{{CLAUDISH_SCRIPT}}`; `jq` (the script exits without it); the ollama daemon answering on `/api/tags` (if not: `brew services start ollama`, or `ollama serve`); at least one model pulled — `ollama list` must be non-empty. If the script's default `gemma3:4b` is **not** among the pulled models, still install, but tell the user which model they do have and that they must set `CLAUDISH_MODEL` (shell profile, or the `env` block of `~/.claude/settings.json`) or the command will fail with `model isn't available`. Optional but worth reporting: if they have an NVIDIA GPU with ≥24 GB VRAM, mention they can run a much larger model and should set `CLAUDISH_KEEP_ALIVE=5m`.
 
@@ -114,6 +120,12 @@ carry no placeholders):
   command still works — it falls back to passing `model` explicitly and prefixing the
   description with the tier.
 - Ask before overwriting an existing file of the same name, as with commands.
+
+`cave` is a **skill**, so it installs differently from the commands:
+- Read `<repo>/skills/cave/SKILL.md`, substitute `{{CAVE_DIR}}` and `{{CAVE_VOICE_ID}}`, and Write it to `~/.claude/skills/cave/SKILL.md` (not `~/.claude/commands/`). Ask before overwriting, as with commands.
+- `mkdir -p` the `{{CAVE_DIR}}` directory. Read `<repo>/cave-setup/PERSONALITY.md`, substitute `{{USER_NAME}}`, and Write it to `{{CAVE_DIR}}/PERSONALITY.md`. If that file already exists, **don't overwrite it by default**: the user may have tuned Cave. Offer a diff and ask.
+- Never create or touch `recent-reads.txt`; the skill writes it on first use.
+- Run the same `{{` leftover check on both installed files.
 
 For `pr-autoreview` additionally copy the two workflow files (they take all config via runtime args, so they are copied verbatim):
 - `<repo>/workflows/pr-review-fanout.js` → `~/.claude/workflows/pr-review-fanout.js`
