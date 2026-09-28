@@ -1,6 +1,6 @@
 ---
 name: cave
-description: Voice the previous response as Cave Johnson from Portal 2. The gist is rewritten as one of his pre-recorded Aperture Science announcements and performed through ElevenLabs v3 on the local speakers. Use when the user types /cave or asks to hear the last response in Cave Johnson's voice.
+description: Voice the previous response as Cave Johnson from Portal 2. The gist is rewritten as one of his pre-recorded Aperture Science announcements and performed through ElevenLabs v4 on the local speakers. Use when the user types /cave or asks to hear the last response in Cave Johnson's voice.
 argument-hint: "[--brief|--medium|--detailed] [direction, e.g. furious]"
 allowed-tools: Read, Write, Bash
 user-invocable: true
@@ -72,7 +72,8 @@ On Windows that is the same file Git Bash sees as `/tmp/claude_cave_input.txt`. 
 set -euo pipefail
 
 VOICE_ID="{{CAVE_VOICE_ID}}"   # your Cave voice, see Voice below
-STABILITY=0.0                  # 0.0 Creative (default) · 0.5 Natural if a read drifts
+MODEL_ID="eleven_v4"           # eleven_v4_turbo costs about half the credits, with less range
+STABILITY=0.0                  # 0.0 most expressive (default) · 0.5 holds his voice tighter if a read drifts
 CAVE_DIR="$(cygpath -u '{{CAVE_DIR}}' 2>/dev/null || echo '{{CAVE_DIR}}')"
 
 : "${ELEVENLABS_API_KEY:?ELEVENLABS_API_KEY is not set. Set it in your shell profile (on Windows, at user scope) and start a new Claude Code session.}"
@@ -97,9 +98,10 @@ fi
 
 # Send the JSON through stdin with non-ASCII escaped (jq -a). If it's passed as a curl
 # argument instead, an em-dash or ellipsis reaches ElevenLabs as invalid UTF-8 on Windows (HTTP 400).
-HTTP=$(jq -a -Rs --argjson stab "$STABILITY" '{
-  text: ., model_id: "eleven_v3",
-  voice_settings: {stability: $stab, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true}
+# v4 takes only stability and similarity_boost; it has no style or speed setting.
+HTTP=$(jq -a -Rs --arg model "$MODEL_ID" --argjson stab "$STABILITY" '{
+  text: ., model_id: $model,
+  voice_settings: {stability: $stab, similarity_boost: 0.75}
 }' < "$IN" | curl -sS -o "$OUT" -w '%{http_code}' -X POST \
   "https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128" \
   -H "xi-api-key: ${ELEVENLABS_API_KEY}" -H "Content-Type: application/json" -H "Accept: audio/mpeg" \
@@ -154,8 +156,8 @@ Reply with one short line naming the tier and the Cave you played, e.g. `Cave ha
 
 The original is an Instant Voice Clone of a friend's Cave impression, made with that friend's permission, and it isn't shared. If you clone one, clone a voice you have the right to use, not the game's voice actor.
 
-- **Model:** `eleven_v3`, which the audio tags require.
-- **Stability:** `0.0` (Creative). In testing it kept his likeness as well as `0.5` (Natural) did, with more range. If a read drifts off his voice, set `STABILITY=0.5` in the block.
+- **Model:** `eleven_v4`. It follows his delivery tags, phrase directions, and sound effects more closely than v3 did, and ElevenLabs says it holds a cloned voice more faithfully. It has only two settings, Stability and Similarity: no Style or Speed, and no SSML. `eleven_v4_turbo` costs about half the credits per character, with less range; set `MODEL_ID` in the block to use it.
+- **Stability:** `0.0`, the most expressive end. On v3 it kept his likeness as well as `0.5` did, with more range. If a read drifts off his voice or overplays its tags, set `STABILITY=0.5` in the block.
 
 ## What not to do
 
