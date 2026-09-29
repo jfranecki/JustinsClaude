@@ -30,8 +30,8 @@ Present this menu (with AskUserQuestion, multiSelect, unless $ARGUMENTS already 
 | `pr-autoreview` | Unattended sweep: finds open PRs needing your review in one configured repo, deep-reviews them in parallel worktrees, auto-posts human-voiced reviews | `review-deep` installed, `gh` authed with access to the target repo, a local clone of it, `python3` |
 | `slack-updates` | Read-only spoken-style brief of Slack channels you choose to track | Slack MCP connected, your Slack member ID |
 | `speak` | Reads the last response aloud with local Kokoro TTS (free, offline) | local Kokoro install — see `kokoro-setup/KOKORO_SETUP.md` |
-| `speak-api` | Reads a summary of the last response aloud via ElevenLabs v3 with expressive audio tags; a required `--f`/`--m` flag picks the female AU or male UK voice | `ELEVENLABS_API_KEY` env var, `jq`, an audio player (`afplay` on macOS, else `ffplay`/`mpv`/`mpg123`/`cvlc`) |
-| `cave` | A skill, not a command: rewrites the last response as a Cave Johnson (Portal 2) announcement and performs it via ElevenLabs v3 in a voice you choose | `ELEVENLABS_API_KEY` env var, `jq`, an audio player, an ElevenLabs voice ID for Cave |
+| `speak-api` | Reads a summary of the last response aloud via ElevenLabs v4 with expressive audio tags; a required `--f`/`--m` flag picks the female AU or male UK voice | `ELEVENLABS_API_KEY` env var, `jq`, an audio player (`afplay` on macOS, else `ffplay`/`mpv`/`mpg123`/`cvlc`) |
+| `cave` | A skill, not a command: rewrites the last response as a Cave Johnson (Portal 2) announcement and performs it via ElevenLabs v4 in a voice you choose | `ELEVENLABS_API_KEY` env var, `jq`, an audio player, an ElevenLabs voice ID for Cave |
 | `claudish` | Rewrites the last response into plain English using a local ollama model — free, private, no API tokens | ollama installed and running with one model pulled, `jq` — see `ollama-setup/OLLAMA_SETUP.md` |
 | `memorize` | Generalizes a project memory into this repo's shared `memories/` library — audits coupling, restructures, drafts for review | a local clone of this repo, kept at a stable path (it *is* the library) |
 

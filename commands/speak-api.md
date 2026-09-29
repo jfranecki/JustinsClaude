@@ -1,12 +1,12 @@
 ---
-description: Summarize the previous response and speak it aloud via ElevenLabs v3 with expressive audio tags. Requires a voice flag (--m or --f). Length auto-scales to the response, or force it with --brief/--medium/--detailed. An optional personality argument shapes the wording and tag choice.
+description: Summarize the previous response and speak it aloud via ElevenLabs v4, directed with expressive audio tags. Requires a voice flag (--m or --f). Length auto-scales to the response, or force it with --brief/--medium/--detailed. An optional personality argument shapes the wording and tag choice.
 argument-hint: --m|--f [--brief|--medium|--detailed] [personality — empty uses the flag's default persona]
 allowed-tools: Write, Bash
 ---
 
-# /speak-api — ElevenLabs v3 narration
+# /speak-api — ElevenLabs v4 narration
 
-Speak your **most recent assistant message** aloud through the computer speakers, in the voice of the personality below, using ElevenLabs v3 with expressive audio tags applied inline.
+Speak your **most recent assistant message** aloud through the computer speakers, in the voice of the personality below, using ElevenLabs v4 with expressive audio tags applied inline.
 
 ## Arguments for this run
 
@@ -73,7 +73,7 @@ export ELEVENLABS_API_KEY="sk_..."
 [Environment]::SetEnvironmentVariable('ELEVENLABS_API_KEY', 'sk_...', 'User')
 ```
 
-Also requires **`jq`** (`brew install jq` · `apt install jq` · `winget install jqlang.jq`) and an **audio player** — `afplay` is built into macOS; elsewhere `speak-api.sh` auto-detects `ffplay`, `mpv`, `mpg123`, or `cvlc`, and falls back to PowerShell on Windows. The two voice IDs are set at the top of `speak-api.sh`, next to this command — change those lines to swap voices.
+Also requires **`jq`** (`brew install jq` · `apt install jq` · `winget install jqlang.jq`) and an **audio player** — `afplay` is built into macOS; elsewhere `speak-api.sh` auto-detects `ffplay`, `mpv`, `mpg123`, or `cvlc`, and falls back to PowerShell on Windows. The two voice IDs and the model are set at the top of `speak-api.sh`, next to this command — change those lines to swap them.
 
 ---
 
@@ -104,29 +104,39 @@ Rules:
 
 If there is no prior assistant message (this is the first turn), reply once with `Nothing to speak yet — invoke /speak-api after I've responded.` and stop.
 
-### Step 2 — Apply ElevenLabs v3 audio tags
+### Step 2 — Direct the read with v4 audio tags
 
-Audio tags are the heart of an expressive v3 read — **lean on them heavily.** A summary carrying a tag in almost every sentence sounds like a *person*; one with a tag every few sentences sounds like a robot reading a memo. This step is where the quality comes from, so tag generously and deliberately.
+Audio tags are how you direct the performance, and v4 takes direction far better than v3 did: it follows each tag, and each run of tags, closely enough that **the delivery you describe is the delivery you get.** That cuts both ways. A vague tag gets a generic read, and a tag on every clause risks an over-acted one. Direct like a voice director: say exactly how a line should land, at the moments that matter, and let the writing carry the rest.
 
-**How v3 actually reads tags — three things decide whether a tag lands:**
+**How v4 reads a script — four things decide whether a read lands:**
 
-1. **The vocabulary is open, not a fixed list.** v3 *interprets* the words inside `[...]` as stage directions and performs them — the bracket text is never spoken aloud. So the palette below is a launch pad, not a whitelist: if you can describe a delivery in two or three words, you can tag it — `[muttering under their breath]`, `[barely holding back a grin]`, `[suddenly serious]`, `[warming to the idea]` all work. Invent apt tags freely.
-2. **Tags are voice-dependent — keep them in the persona's lane.** ElevenLabs' own guidance: *"some tags work well with certain voices while others may not,"* and the voice you pick matters more than any tag. A dry, crisp voice can `[wry]`, `[clipped]`, `[amused]`, `[conspiratorial]`; it will *not* convincingly `[sobbing]` or `[manic screaming]`. Choose tags the chosen voice would actually produce, and don't whiplash between registers unless the content truly turns. This applies doubly here: the `--m` and `--f` voices have different ranges, so tag for the one the flag selected.
-3. **Stability sets how hard tags hit.** This script sends `stability: 0.0` = **Creative** — the most expressive setting, so tags land hard and emotion swings wide (occasionally at the cost of slight voice drift). `0.5` = **Natural** reins that in, holding the voice's identity more tightly while still performing the cues. `1.0` = **Robust** is the steadiest read but the *least responsive to tags* — never use it when tags are the point. Creative is the default here because expressive tagging is the whole point of this command; if a particular voice drifts too much, nudge `STABILITY` in `speak-api.sh` up toward Natural.
+1. **Tags are natural-language direction, not a fixed list.** v4 *interprets* whatever is inside `[...]` as a stage direction and performs it; the bracket text is never spoken aloud. One word works (`[sighs]`, `[whispers]`), but v4's real strength is a short phrase that says precisely how the line should land: `[dry, quietly pleased with himself]`, `[said slowly, like explaining it to a child]`, `[barely holding back a laugh]`, `[warming to the idea]`. ElevenLabs' own examples go as far as `[said angrily in French accent]`. When the difference matters, prefer the specific phrase over the generic emotion word (`[relieved, but trying to play it cool]` over `[relieved]`). Keep phrases to a clause, not a paragraph: they're billed like everything else.
+2. **v4 reads the words, not just the tags.** It infers emotion from the text around a tag (word choice, punctuation, what came before) and is most reliable when tag and line agree. So write lines that already carry their mood (*"Oh, it actually WORKED."* needs no `[surprised]`), and spend tags on what the words can't say: a laugh, a sigh, a pause, a shift in energy, a change of intent. A tag that fights its line loses; `[whispering]` on a line written as a shout won't land.
+3. **Tags are voice-dependent — keep them in the persona's lane.** ElevenLabs' own guidance: *"some tags work well with certain voices while others may not,"* and the voice you pick matters more than any tag. A dry, crisp voice can do `[wry]`, `[clipped]`, `[amused]`, `[conspiratorially]`; it will *not* convincingly do `[sobbing]` or `[manic screaming]`. Choose tags the chosen voice would actually produce, and don't whiplash between registers unless the content truly turns. This applies doubly here: the `--m` and `--f` voices have different ranges, so tag for the one the flag selected.
+4. **There are only two dials, and no SSML.** v4 takes just **Stability** and **Similarity**. It has no Style or Speed setting, and SSML such as `<break time="1s"/>` isn't supported, so pace and pauses come from tags and punctuation (`[slows down]`, `[rapid-fire]`, `[pause]`, `…`). `speak-api.sh` sends `STABILITY=0.0`, the most expressive end: tags hit hardest and emotion swings widest, occasionally at the cost of slight voice drift. If a particular voice drifts, nudge `STABILITY` at its top up toward `0.5`, which holds the voice's identity tighter while v4 still follows the tags; near `1.0` the read is steady but least responsive to direction, so never go there when tags are the point. `similarity_boost` (0.75) sets how closely the output sticks to the chosen voice.
 
-   v3 is also most consistent on prompts longer than **~250 characters**; very short briefs read flatter and skip tags more often — an accepted trade for speed, but a reason not to over-trim.
+**Density — direct the turns, don't decorate every clause.** Because v4 performs every tag it's given, the v3 habit of two or three tags per sentence now tends to over-act. Tag where the performance *changes*:
 
-**Density — be frequent, but make each tag earn its place.** Aim for **at least one tag in almost every sentence, often two or three**: open on a tone/emotion, punctuate the middle with a non-verbal or a pause, resolve on the closing mood. Two limits only — (a) never stack tags that fight each other (`[whispering][shouting]`), and (b) ElevenLabs **bills per character and tags count**, so a tag should change how a line *sounds*, not just decorate it; under a tight tier, spend the budget on tags that earn it.
+- **Open** with one tag, often a phrase, that fixes the persona's tone and energy: `[relaxed and cheerful]` · `[crisp, measured]`.
+- **Turn** with a tag at each shift: a punchline, a reveal, a relief, bad news after good. A non-verbal or a pause usually does it.
+- **Land** the close with a tag matching the final emotion, so the read doesn't flatten at the end.
 
-**The palette** — inline, **lowercase**, square brackets. This is a deep menu, not a checklist: combine tags, grade them, and invent your own — compounds like `[barely holding back anger]`, `[whispers in shock]`, and `[voice trembling with emotion]` work *precisely because* the vocabulary is open.
+That works out to about a tag every sentence or two. A line whose words already carry its mood can go untagged. ElevenLabs **bills per character and tags count**, so every tag should change how a line *sounds*; under a tight tier, spend the budget on the ones that earn it.
 
-**Emotion / tone** (the workhorse — anchor most sentences with one):
+**Sequences choreograph a beat.** v4 follows adjacent tags in order, so two or three can stage a small moment: `[sighs] [short pause] [warmly] Right, here's the good bit.` Never stack tags that fight each other (`[whispering][shouting]`).
+
+**The palette** — inline, **lowercase**, square brackets. This is a deep menu, not a checklist and not a whitelist: combine tags, grade them, and coin your own. Every category below also works as the seed of a phrase: `[sighs]` becomes `[sighs, half amused]`, `[slowly]` becomes `[slowly, savouring it]`.
+
+**Phrase directions** (v4's headline: describe the delivery in a few words, and it's followed closely):
+`[said with a grin]` `[dry, quietly pleased with himself]` `[relieved, but trying to play it cool]` `[barely holding back a laugh]` `[warming to the idea]` `[mock-serious]` `[said slowly, like explaining it to a child]` `[half to herself]` `[leaning in, conspiratorial]` `[suddenly all business]` `[with exaggerated patience]` `[like it's the best news all week]` `[trying not to sound smug]` `[matter-of-fact, then a small laugh]`
+
+**Emotion / tone** (the workhorse — anchor the opening and each turn with one):
 `[happy]` `[joyful]` `[cheerful]` `[delighted]` `[content]` `[optimistic]` `[hopeful]` `[grateful]` `[relieved]` `[warm]` `[affectionate]` `[tender]` `[excited]` `[eager]` `[enthusiastic]` `[giddy]` `[playful]` `[amused]` `[mischievous]` `[proud]` `[triumphant]` `[confident]` `[determined]` `[smug]` `[reassuring]` `[sincere]` `[earnest]` `[calm]` `[gentle]` `[soothing]` `[reflective]` `[wistful]` `[nostalgic]` `[bittersweet]` `[melancholic]` `[sad]` `[sorrowful]` `[lonely]` `[regretful]` `[disappointed]` `[resigned]` `[longing]` `[yearning]` `[annoyed]` `[irritated]` `[frustrated]` `[indignant]` `[angry]` `[furious]` `[bitter]` `[jealous]` `[sarcastic]` `[dry]` `[wry]` `[cynical]` `[skeptical]` `[dismissive]` `[suspicious]` `[wary]` `[uneasy]` `[tense]` `[anxious]` `[nervous]` `[worried]` `[fearful]` `[panicked]` `[shocked]` `[surprised]` `[awe]` `[amazed]` `[confused]` `[bewildered]` `[curious]` `[inquisitive]` `[intrigued]` `[thoughtful]` `[pensive]` `[contemplative]` `[serious]` `[grave]` `[solemn]` `[embarrassed]` `[sheepish]` `[ashamed]` `[guilty]` `[tired]` `[bored]` `[exasperated]`
 
 **Intensity & compound** (grade or blend an emotion — proof the vocabulary is open; coin more like these):
 `[slightly nervous]` `[barely excited]` `[quietly emotional]` `[barely holding back anger]` `[deeply sorrowful]` `[overjoyed]` `[visibly shaken]` `[masking fear]` `[forced calm]` `[bursting with excitement]` `[out of breath]` `[exhausted voice]` `[in pain]`
 
-**Direction / manner** (adverbial stage directions v3 reads especially well — drop them mid-sentence):
+**Direction / manner** (adverbial stage directions — drop them mid-sentence):
 `[cheerfully]` `[warmly]` `[gently]` `[softly]` `[quietly]` `[tenderly]` `[playfully]` `[teasingly]` `[mischievously]` `[slyly]` `[conspiratorially]` `[knowingly]` `[matter-of-factly]` `[flatly]` `[deadpan]` `[dryly]` `[dry tone]` `[understated]` `[sarcastically]` `[reluctantly]` `[hesitantly]` `[nervously]` `[cautiously]` `[politely]` `[firmly]` `[assertively]` `[commanding tone]` `[emphatically]` `[earnestly]` `[convincingly]` `[passionately]` `[urgently]` `[breathlessly]` `[wistfully]` `[grimly]` `[coldly]` `[sharply]` `[curtly]` `[brightly]` `[excitedly]` `[reassuringly]` `[apologetically]` `[proudly]` `[smugly]` `[suddenly serious]` `[trailing off]`
 
 **Word emphasis** (pairs with CAPS on the spoken word):
@@ -147,14 +157,14 @@ Audio tags are the heart of an expressive v3 read — **lean on them heavily.** 
 **Conversational realism** (thinking and self-talk — great for an unscripted, human feel):
 `[thinking]` `[muttering to self]` `[searching for words]` `[hesitates nervously]` `[leans closer]` `[steps back slightly]`
 
-**Accents & dialects** (one tag recolors the *whole* read — use sparingly, and only if the voice can carry it):
+**Accents & dialects** (v4 holds an accent much harder than v3 did while keeping the voice's identity under it, so one tag at the top recolors the *whole* read. Use one only when the personality asks for an accent the voice doesn't already have. Never add one for the default personas: their voices already carry the accent, and a tag only exaggerates it):
 `[american accent]` `[british accent]` `[australian accent]` `[canadian accent]` `[irish accent]` `[scottish accent]` `[indian english]` `[southern US accent]` `[new york accent]` `[midwestern accent]` `[french accent]` `[german accent]` `[italian accent]` `[spanish accent]` `[russian accent]` `[strong X accent]` *(swap in X)* `[pirate accent]` `[medieval accent]`
 
 **Character, age & narration voices** (these recolor the *entire* read — reserve for when the persona genuinely calls for it; they rarely fit a quick status summary):
 `[childlike tone]` `[teenager tone]` `[young adult voice]` `[middle-aged tone]` `[elderly voice]` `[old man voice]` · `[heroic voice]` `[wise mentor voice]` `[villain voice]` `[evil scientist voice]` `[storyteller voice]` `[news reporter voice]` `[radio host voice]` `[teacher voice]` · `[knight voice]` `[royal voice]` `[pirate voice]` `[dragon narrator]` · `[robotic tone]` `[sci-fi AI voice]` `[hologram voice]` `[cybernetic voice]` · `[documentary narrator]` `[audiobook narrator]` `[epic narrator]` `[fantasy narrator]` `[narrating]` `[announcer voice]` `[grand narration]` `[epic cinematic tone]` · `[classic film noir]` `[thriller narrator]` `[horror whisper]` `[ominous tone]` `[dramatic reveal]` `[comedic narration]` · `[commercial voice]` `[enthusiastic ad voice]` `[luxury brand voice]` `[corporate presentation tone]` · `[singing]` `[singing softly]` · `[soft conclusion]` `[hopeful ending]` `[quiet reflection]`
 
-**Sound effects** (v3 can render these inline — a rare flourish when the content invites it, never decoration):
-`[applause]` `[clapping]` `[laughter]` `[gunshot]` `[explosion]` `[door slams]` `[footsteps]` `[phone ringing]` `[static]` `[wind]` `[thunder]`
+**Sound effects** (v4 renders these inline and follows them more reliably than v3 did — still a rare flourish when the content invites it, never decoration; one per read at most):
+`[applause]` `[clapping]` `[laughter]` `[gunshot]` `[explosion]` `[door slams]` `[footsteps]` `[phone ringing]` `[phone buzzing]` `[static]` `[wind]` `[light rain]` `[thunder]`
 
 **Punctuation & CAPS are expressive controls too — they compound with tags:**
 - **Ellipses `…`** → pauses, hesitation, trailing off: *"Well… that's one way to do it."*
@@ -164,31 +174,25 @@ Audio tags are the heart of an expressive v3 read — **lean on them heavily.** 
 
 (Still: spoken prose only — no markdown, no lists, no code, no file paths in the spoken text.)
 
-**Placement, in practice:**
-- **Open** with a tone + energy pairing that fixes the persona: `[confident][measured]` · `[cheerful][relaxed]`.
-- **Stack** adjacent, non-conflicting tags for a layered beat: `[gentle][soft] Hey, you.`
-- **Break** on thought-shifts with a non-verbal or a pause — before a punchline, after a reveal, on a relief.
-- **Resolve** with a tag matching the final emotion so the read doesn't flatten at the end.
+*Tag reference: https://elevenlabs.io/docs/overview/capabilities/text-to-speech/eleven-v4 · https://elevenlabs.io/docs/overview/capabilities/text-to-speech/best-practices*
 
-*Tag reference: https://elevenlabs.io/blog/v3-audiotags · https://elevenlabs.io/docs/best-practices/prompting/eleven-v3*
-
-**Examples** — note the density (a tag roughly every sentence or clause), the lowercase tags, and how `…` and CAPS pull extra weight:
+**Examples** — note where the tags sit (the open, each turn, the close), the phrase directions doing work a single word can't, the lines left untagged because their words already carry the mood, and how `…` and CAPS pull extra weight:
 
 **"stoic gruff sailor":**
 
-> [gruff][low energy] Aye. The deed's done. [heavy sigh] [beat] Took some rough seas — [measured] but she's holdin' water. [firmly] Sing out if she lists.
+> [gruff, low and unhurried] Aye. The deed's done. [heavy sigh] Took some rough seas getting her there… [firmly] but she's holdin' water. Sing out if she lists.
 
 **"deadpan dry comedian":**
 
-> [deadpan][flatly] Great news. [short pause] I did the thing. [dry] [wry laugh] It worked. [beat] [skeptical] Probably.
+> [deadpan] Great news. I did the thing. [beat] It worked. [pause] [flatly, not remotely convinced] Probably.
 
 **`--f` default — "laid back friendly Australian girl":**
 
-> [cheerful][relaxed] Yeah, so — got that all sorted for ya. [giggles] [short pause] Honestly came together HEAPS cleaner than I reckoned… [content] everything's hooked up beautiful. [warmly] Just give us a yell if you wanna tweak anything, ay.
+> [relaxed and cheerful] Yeah, so — got that all sorted for ya. [giggles] Honestly came together HEAPS cleaner than I reckoned… everything's hooked up beautiful. [warmly] Just give us a yell if you wanna tweak anything, yeah?
 
 **`--m` default — "Q from James Bond":**
 
-> [confident][measured] Right then. The kit's wired and humming along nicely. [short pause] [softly] Cleaner integration than I'd anticipated, in fact — [wry] rather pleased with it. [knowingly] Do call if anything wants tweaking. [amused] Mm.
+> [crisp, quietly pleased with himself] Right then. The kit's wired and humming along nicely. [short pause] Cleaner integration than I'd anticipated, in fact — rather pleased with it. [dryly] Do call if anything wants tweaking. [amused] Mm.
 
 ### Steps 3 and 4 — Write the summary and play it, in one message
 

@@ -1,6 +1,6 @@
 ---
 name: cave
-description: Voice the previous response as Cave Johnson from Portal 2. The gist is rewritten as one of his pre-recorded Aperture Science announcements and performed through ElevenLabs v3 on the local speakers. Use when the user types /cave or asks to hear the last response in Cave Johnson's voice.
+description: Voice the previous response as Cave Johnson from Portal 2. The gist is rewritten as one of his pre-recorded Aperture Science announcements and performed through ElevenLabs v4 on the local speakers. Use when the user types /cave or asks to hear the last response in Cave Johnson's voice.
 argument-hint: "[--brief|--medium|--detailed] [direction, e.g. furious]"
 allowed-tools: Read, Write, Bash
 user-invocable: true
@@ -85,8 +85,8 @@ Reply with one short line naming the tier and the Cave you played, e.g. `Cave ha
 
 The original is an Instant Voice Clone of a friend's Cave impression, made with that friend's permission, and it isn't shared. If you clone one, clone a voice you have the right to use, not the game's voice actor.
 
-- **Model:** `eleven_v3`, which the audio tags require.
-- **Stability:** `0.0` (Creative). In testing it kept his likeness as well as `0.5` (Natural) did, with more range. If a read drifts off his voice, set `STABILITY=0.5` in `speak.sh`.
+- **Model:** `eleven_v4`. It follows his delivery tags, phrase directions, and sound effects more closely than v3 did, and ElevenLabs says it holds a cloned voice more faithfully. It has only two settings, Stability and Similarity: no Style or Speed, and no SSML. `eleven_v4_turbo` costs about half the credits per character, with less range; set `MODEL_ID` in `speak.sh` to use it.
+- **Stability:** `0.0`, the most expressive end. On v3 it kept his likeness as well as `0.5` did, with more range. If a read drifts off his voice or overplays its tags, set `STABILITY=0.5` in `speak.sh`.
 
 ## What not to do
 

@@ -13,17 +13,17 @@ If a focus is given, still map the whole module first, then go deeper on that ar
 
 ## Pre-loaded context
 
-Current location and orientation:
+Current location and orientation (git is optional — every line below falls back cleanly if this is not a git repo or git is unavailable):
 
 - Working directory: !`pwd`
 - Repo root (if any): !`git rev-parse --show-toplevel 2>/dev/null || echo "not a git repo"`
-- Current branch & status: !`git status -sb 2>/dev/null | head -20`
-- Recent history: !`git log --oneline -15 2>/dev/null`
+- Current branch & status: !`git status -sb 2>/dev/null | head -20 || echo "no git / not a repo"`
+- Recent history: !`git log --oneline -15 2>/dev/null || echo "no git history"`
 - Submodules declared: !`git config --file .gitmodules --get-regexp path 2>/dev/null || echo "none"`
 - Top-level contents: !`ls -la`
-- Rough size: !`git ls-files 2>/dev/null | wc -l` tracked files
+- Rough size: !`find . -type f -not -path '*/.git/*' -not -path '*/node_modules/*' 2>/dev/null | wc -l` files (excludes .git and node_modules)
 
-Use this as a starting point, not the whole picture. Read the real files.
+Use this as a starting point, not the whole picture. Read the real files. If the git lines above show "not a git repo" / "no git history", this project simply does not use git — proceed using the files directly and skip any git-based step below.
 
 ---
 
@@ -74,7 +74,7 @@ Find how it actually runs:
 
 ### Phase 6 — State of the code
 
-- Recent direction: what do the last ~30 commits suggest is being actively worked on?
+- Recent direction: if git history is available, what do the last ~30 commits suggest is being actively worked on? If there is no git history, infer recent direction from other signals instead — most-recently-modified files, dated entries in CLAUDE.md / changelogs / planning docs, and any "current state" or "roadmap" notes in the repo.
 - Rough edges: `TODO`/`FIXME`/`HACK` markers, obviously stale code, areas with no tests.
 - Anything surprising, risky, or that contradicts the README.
 

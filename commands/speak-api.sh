@@ -10,8 +10,8 @@ VOICE="${1:-UNSET}"
 # Voice IDs — change these to swap voices (browse: https://elevenlabs.io/app/voice-library).
 VOICE_ID_F="u8ADrbquiJqufR9XMtb8"   # laid back friendly Australian girl
 VOICE_ID_M="lF0PpOQjCl3K89rt0U83"   # young professional British male ("Q")
-MODEL="eleven_v3"                   # the audio tags need the v3 family
-STABILITY=0.0                       # 0.0 Creative · 0.5 Natural if a voice drifts
+MODEL="eleven_v4"                   # eleven_v4_turbo costs about half the credits, with less range
+STABILITY=0.0                       # 0.0 most expressive · 0.5 holds the voice tighter if a read drifts
 
 case "$VOICE" in
   f) VOICE_ID="$VOICE_ID_F" ;;
@@ -50,7 +50,7 @@ fi
 payload() {
   jq -a -Rs --arg model "$MODEL" --argjson stab "$STABILITY" '{
     text: ., model_id: $model,
-    voice_settings: {stability: $stab, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true}
+    voice_settings: {stability: $stab, similarity_boost: 0.75}
   }' < "$SENT"
 }
 URL="https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}"

@@ -7,8 +7,11 @@
 set -euo pipefail
 
 VOICE_ID="{{CAVE_VOICE_ID}}"   # your Cave voice, see Voice in SKILL.md
-MODEL="eleven_v3"              # the audio tags need the v3 family
-STABILITY=0.0                  # 0.0 Creative (default) · 0.5 Natural if a read drifts
+MODEL="eleven_v4"              # eleven_v4_turbo costs about half the credits, with less range
+STABILITY=0.0                  # 0.0 most expressive (default) · 0.5 holds the voice tighter if a read drifts
+# v4 keeps a clone's sample loudness (about -20 LUFS for the original Cave clone), where v3
+# pushed it to about -13. ffplay adds this gain behind a limiter; $OUT stays unboosted. 0 disables it.
+PLAY_GAIN_DB=6.5
 CAVE_DIR="$(cygpath -u '{{CAVE_DIR}}' 2>/dev/null || echo '{{CAVE_DIR}}')"
 
 : "${ELEVENLABS_API_KEY:?ELEVENLABS_API_KEY is not set. Set it in your shell profile (on Windows, at user scope) and start a new Claude Code session.}"
@@ -41,7 +44,7 @@ fi
 payload() {
   jq -a -Rs --arg model "$MODEL" --argjson stab "$STABILITY" '{
     text: ., model_id: $model,
-    voice_settings: {stability: $stab, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true}
+    voice_settings: {stability: $stab, similarity_boost: 0.75}
   }' < "$SENT"
 }
 URL="https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}"
@@ -49,7 +52,8 @@ HDRS=(-H "xi-api-key: ${ELEVENLABS_API_KEY}" -H "Content-Type: application/json"
 
 # Stream into the first player that reads stdin.
 if command -v ffplay >/dev/null 2>&1; then
-  PLAYER=(ffplay -nodisp -autoexit -loglevel error -f mp3 -probesize 32 -analyzeduration 0 -i -)
+  PLAYER=(ffplay -nodisp -autoexit -loglevel error -f mp3 -probesize 32 -analyzeduration 0 -i -
+          -af "volume=${PLAY_GAIN_DB}dB,alimiter=limit=0.891:level=0")
 elif command -v mpv >/dev/null 2>&1; then
   PLAYER=(mpv --really-quiet --no-video --cache=no -)
 elif command -v mpg123 >/dev/null 2>&1; then
