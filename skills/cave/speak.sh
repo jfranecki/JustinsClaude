@@ -7,7 +7,7 @@
 set -euo pipefail
 
 VOICE_ID="{{CAVE_VOICE_ID}}"   # your Cave voice, see Voice in SKILL.md
-MODEL="eleven_v4"              # eleven_v4_turbo costs about half the credits, with less range
+MODEL="eleven_v4"              # Eleven v4; the audio tags need v3 or later
 STABILITY=0.0                  # 0.0 most expressive (default) · 0.5 holds the voice tighter if a read drifts
 # v4 keeps a clone's sample loudness (about -20 LUFS for the original Cave clone), where v3
 # pushed it to about -13. ffplay adds this gain behind a limiter; $OUT stays unboosted. 0 disables it.

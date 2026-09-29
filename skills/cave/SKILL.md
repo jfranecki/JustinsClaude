@@ -85,7 +85,7 @@ Reply with one short line naming the tier and the Cave you played, e.g. `Cave ha
 
 The original is an Instant Voice Clone of a friend's Cave impression, made with that friend's permission, and it isn't shared. If you clone one, clone a voice you have the right to use, not the game's voice actor.
 
-- **Model:** `eleven_v4`. It follows his delivery tags, phrase directions, and sound effects more closely than v3 did, and ElevenLabs says it holds a cloned voice more faithfully. It has only two settings, Stability and Similarity: no Style or Speed, and no SSML. `eleven_v4_turbo` costs about half the credits per character, with less range; set `MODEL` in `speak.sh` to use it.
+- **Model:** `eleven_v4`. It follows his delivery tags, phrase directions, and sound effects more closely than v3 did, and ElevenLabs says it holds a cloned voice more faithfully. It has only two settings, Stability and Similarity: no Style or Speed, and no SSML.
 - **Stability:** `0.0`, the most expressive end. On v3 it kept his likeness as well as `0.5` did, with more range. If a read drifts off his voice or overplays its tags, set `STABILITY=0.5` in `speak.sh`.
 
 ## What not to do

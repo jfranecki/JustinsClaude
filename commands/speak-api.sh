@@ -10,7 +10,7 @@ VOICE="${1:-UNSET}"
 # Voice IDs — change these to swap voices (browse: https://elevenlabs.io/app/voice-library).
 VOICE_ID_F="u8ADrbquiJqufR9XMtb8"   # laid back friendly Australian girl
 VOICE_ID_M="lF0PpOQjCl3K89rt0U83"   # young professional British male ("Q")
-MODEL="eleven_v4"                   # eleven_v4_turbo costs about half the credits, with less range
+MODEL="eleven_v4"                   # Eleven v4; the audio tags need v3 or later
 STABILITY=0.0                       # 0.0 most expressive · 0.5 holds the voice tighter if a read drifts
 
 case "$VOICE" in
