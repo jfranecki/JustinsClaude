@@ -179,6 +179,14 @@ What it does, in short:
 
 The script's default model (`gemma3:4b`, 3.3 GB) is chosen to fit a 16 GB laptop. With a 24 GB GPU you can run a 26B-class model and should set `CLAUDISH_KEEP_ALIVE=5m` to keep it resident, which removes the cold-load cost that dominates the wait — the runbook covers both ends.
 
+## Setting up the status line
+
+A four-row status line for Claude Code: context and rate-limit gauges with reset times, token and cache counts, model, effort level, and session length, then the working directory and git branch. It's a single stdlib-only Python script, **[`statusline-setup/statusline.py`](statusline-setup/statusline.py)**, plus one `statusLine` entry in `~/.claude/settings.json`. The runbook is agent-executable like the others:
+
+> Read statusline-setup/STATUSLINE_SETUP.md and perform the setup it describes.
+
+It copies the script into `~/.claude/`, finds a real Python 3 (on Windows, skipping the Microsoft Store stub), merges the `statusLine` block into your settings without touching the rest, and verifies the output with a sample payload. Claude Code doesn't pass the effort level to status line scripts, so the script reads `effortLevel` from your settings and shows `?` if none is set. Details: **[`statusline-setup/STATUSLINE_SETUP.md`](statusline-setup/STATUSLINE_SETUP.md)**.
+
 ## Repo layout
 
 ```
@@ -191,6 +199,7 @@ Orchestrator Framework/   the orchestrator writeup, the CLAUDE.md and STATE.md t
 workflows/       Workflow-tool scripts used by /pr-autoreview (installed to ~/.claude/workflows)
 kokoro-setup/    agent-executable Kokoro runbook + the speak.py wrapper for /speak
 ollama-setup/    agent-executable ollama runbook + the claudish.sh wrapper for /claudish
+statusline-setup/  agent-executable runbook + the statusline.py script for the four-row status line
 .claude/commands/get-started.md   the installer, available as /get-started when you open Claude Code in this repo
 ```
 
