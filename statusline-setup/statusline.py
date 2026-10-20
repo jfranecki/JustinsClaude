@@ -18,6 +18,7 @@ BLUE = "\033[94m"
 CYAN = "\033[36m"
 PINK = "\033[95m"
 ORANGE = "\033[38;5;208m"
+RED_ORANGE = "\033[38;5;202m"
 LABEL = "\033[38;5;244m"  # muted gray for row labels
 DELTA = "\033[38;5;244m"  # muted gray for (+N) deltas
 
@@ -102,6 +103,7 @@ def effort_color(level):
         "LOW": BLUE,
         "MEDIUM": YELLOW,
         "HIGH": ORANGE,
+        "XHIGH": RED_ORANGE,
         "MAX": RED,
     }.get((level or "").upper(), LABEL)
 
@@ -133,7 +135,7 @@ def git_branch(cwd):
 
 
 def read_effort_level(cwd):
-    """Cascade: project local > project > user settings.json."""
+    """Fallback when the payload has no effort.level. Cascade: project local > project > user settings.json."""
     candidates = [
         os.path.join(cwd, ".claude", "settings.local.json"),
         os.path.join(cwd, ".claude", "settings.json"),
@@ -148,6 +150,37 @@ def read_effort_level(cwd):
         except Exception:
             continue
     return None
+
+
+def compaction_count(transcript_path):
+    """Count compact_boundary records in the session transcript (main thread only)."""
+    if not transcript_path:
+        return None
+    n = 0
+    try:
+        with open(transcript_path, "rb") as f:
+            for line in f:
+                if b'"compact_boundary"' not in line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                if (isinstance(r, dict) and r.get("type") == "system"
+                        and r.get("subtype") == "compact_boundary"
+                        and r.get("isSidechain") is not True):
+                    n += 1
+    except Exception:
+        return None
+    return n
+
+
+def fmt_cost(usd):
+    """Session cost: $0.42; empty when absent."""
+    try:
+        return f"${float(usd):.2f}"
+    except Exception:
+        return ""
 
 
 def main():
@@ -181,10 +214,12 @@ def main():
     seven_reset = (rate.get("seven_day") or {}).get("resets_at")
 
     duration_ms = (data.get("cost") or {}).get("total_duration_ms")
+    cost_usd = (data.get("cost") or {}).get("total_cost_usd")
+    compactions = compaction_count(data.get("transcript_path"))
 
     cwd_raw = (data.get("workspace") or {}).get("current_dir") or data.get("cwd") or os.getcwd()
     model = (data.get("model") or {}).get("display_name") or (data.get("model") or {}).get("id") or "?"
-    effort = (read_effort_level(cwd_raw) or "?").upper()
+    effort = ((data.get("effort") or {}).get("level") or read_effort_level(cwd_raw) or "?").upper()
     cwd = shorten_home(cwd_raw)
     branch = git_branch(cwd_raw)
 
@@ -205,7 +240,15 @@ def main():
             inner += " " + LABEL + r + RESET
         return _bracket(inner)
 
-    row1 = gauge("CTX", used_pct) + " " + gauge("5H", five_pct, five_reset) + " " + gauge("7D", seven_pct, seven_reset)
+    def counter(label, n):
+        col = YELLOW if n else LABEL
+        inner = LABEL + label + " " + RESET + BOLD + col + ("?" if n is None else str(n)) + RESET
+        return _bracket(inner)
+
+    row1 = (
+        gauge("CTX", used_pct) + " " + counter("COMPACT", compactions)
+        + " " + gauge("5H", five_pct, five_reset) + " " + gauge("7D", seven_pct, seven_reset)
+    )
 
     # ── Row 2: TOKENS — [IN 949 (+1)] [OUT 13,133 (+36)] [CACHE +277 / 64.6k]
     def delta(n):
@@ -225,7 +268,7 @@ def main():
 
     row2 = bracket(in_part) + " " + bracket(out_part) + " " + bracket(cache_part)
 
-    # ── Row 3: CONFIG — model · effort · duration ─────────────────────────────
+    # ── Row 3: CONFIG — model · effort · duration · cost ──────────────────────
     row3 = (
         CYAN + model + RESET + SEP
         + BOLD + effort_color(effort) + effort + RESET
@@ -233,6 +276,9 @@ def main():
     dur = fmt_duration(duration_ms)
     if dur:
         row3 += SEP + LABEL + dur + RESET
+    cost = fmt_cost(cost_usd)
+    if cost:
+        row3 += SEP + BOLD + GREEN + cost + RESET
 
     # ── Row 4: WHERE — cwd · branch ───────────────────────────────────────────
     parts = [PINK + cwd + RESET]
