@@ -9,18 +9,19 @@ install for you. Open Claude Code (or any coding agent) in this repo and say:
 ## What it shows
 
 ```
-[CTX 42%] [5H 18% 3:37p] [7D 61% Mon 12:57a]
+[CTX 42%] [COMPACT 1] [5H 18% 3:37p] [7D 61% Mon 12:57a]
 [IN 12.0k +5] [OUT 3,400 +120] [CACHE +800 / 64.0k]
-Opus · HIGH · 12m
+Opus · HIGH · 12m · $0.42
 ~/Documents/ClaudeCode/JustinsClaude · main
 ```
 
-1. **Limits:** context window used, then the 5-hour and 7-day rate limits with their reset
+1. **Limits:** context window used and how many times this session has been compacted
+   (yellow once it's above zero), then the 5-hour and 7-day rate limits with their reset
    times. Each percentage is green under 50, yellow under 80, red above.
 2. **Tokens:** session input and output totals, with the last turn's change in gray, then
    cache writes (yellow) and cache reads (green) for the last turn.
-3. **Config:** model, effort level (blue low → yellow medium → orange high → red max), and
-   session duration.
+3. **Config:** model, effort level (blue low → yellow medium → orange high → red-orange
+   xhigh → red max), session duration, and session cost in USD.
 4. **Where:** the working directory, with your home folder shortened to `~`, and the git branch.
 
 ## What it needs
@@ -75,17 +76,19 @@ laptop this was built on; substitute the paths from step 2 and the user's home f
 }
 ```
 
-### 4. Set an effort level (optional, but otherwise it shows `?`)
+### 4. Effort level (usually nothing to do)
 
-Claude Code doesn't pass the effort level to status line scripts, so the script reads
+Claude Code sends the live effort level as `effort.level`, including mid-session `/effort`
+changes, and the script shows that. When the payload has no `effort.level` (an older
+Claude Code, or a model without the effort parameter), the script falls back to
 `effortLevel` from settings, first match wins:
 
 1. `<project>/.claude/settings.local.json`
 2. `<project>/.claude/settings.json`
 3. `~/.claude/settings.json`
 
-If none of them sets it, row 3 shows `?`. To set a default, add `"effortLevel": "high"`
-(or `low`, `medium`, `max`) to `~/.claude/settings.json`.
+If none of them sets it either, row 3 shows `?`. To set a fallback, add
+`"effortLevel": "high"` (or `low`, `medium`, `xhigh`, `max`) to `~/.claude/settings.json`.
 
 ### 5. Verify
 
@@ -93,11 +96,14 @@ Pipe in a sample payload with the same Python from step 2 and check that four ro
 with no traceback:
 
 ```bash
-echo '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"."},"context_window":{"used_percentage":42,"total_input_tokens":12000,"total_output_tokens":3400,"current_usage":{"input_tokens":5,"output_tokens":120,"cache_creation_input_tokens":800,"cache_read_input_tokens":64000}},"rate_limits":{"five_hour":{"used_percentage":18},"seven_day":{"used_percentage":61}},"cost":{"total_duration_ms":754000}}' \
+echo '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"."},"context_window":{"used_percentage":42,"total_input_tokens":12000,"total_output_tokens":3400,"current_usage":{"input_tokens":5,"output_tokens":120,"cache_creation_input_tokens":800,"cache_read_input_tokens":64000}},"rate_limits":{"five_hour":{"used_percentage":18},"seven_day":{"used_percentage":61}},"cost":{"total_cost_usd":0.42,"total_duration_ms":754000}}' \
   | python3 ~/.claude/statusline.py
 ```
 
-On Windows, replace `python3` with the absolute path from step 2. Then tell the user the
+On Windows, replace `python3` with the absolute path from step 2. `[COMPACT ?]` is expected
+here: Claude Code doesn't send a compaction count, so the script counts the
+`compact_boundary` records in the session transcript at `transcript_path`, and the sample
+doesn't include one. Then tell the user the
 status line appears on their next prompt, or after starting a new Claude Code session.
 
 ## Troubleshooting
