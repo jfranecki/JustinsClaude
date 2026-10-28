@@ -62,7 +62,8 @@ python3 "{{HISTORY_SCRIPT}}" search "TODO" -n 10
 ```
 
 If `index` reports no history, this project simply has no prior sessions — carry on with
-the filesystem pass and say so in the briefing.
+the filesystem pass and say so in the briefing. If it says it is `using parent project`,
+the history is the enclosing project's, not this directory's — say that in the briefing too.
 
 ## The rule that makes transcript search safe
 
