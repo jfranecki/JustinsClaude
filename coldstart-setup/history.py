@@ -40,7 +40,10 @@ def project_dir(cwd: Path | None = None) -> Path | None:
     path separators.
 
     A worktree or subdirectory session can be filed under the parent project, so
-    an exact miss falls back to the longest-matching candidate.
+    an exact miss falls back to the closest parent that has history. The encoded
+    name can't tell a parent from a sibling (C:\\work\\app-v2 encodes with
+    C:\\work\\app as a prefix), so a candidate only counts if the directory its
+    transcripts recorded actually contains cwd.
     """
     cwd = (cwd or Path.cwd()).resolve()
     exact = PROJECTS / re.sub(r"[^A-Za-z0-9]", "-", str(cwd))
@@ -49,11 +52,42 @@ def project_dir(cwd: Path | None = None) -> Path | None:
     if not PROJECTS.is_dir():
         return None
     key = re.sub(r"[^A-Za-z0-9]", "-", str(cwd))
-    best, best_len = None, 0
+    best, best_len, best_cwd = None, 0, None
     for cand in PROJECTS.iterdir():
-        if cand.is_dir() and key.startswith(cand.name) and len(cand.name) > best_len:
-            best, best_len = cand, len(cand.name)
+        if not (cand.is_dir() and key.startswith(cand.name) and len(cand.name) > best_len):
+            continue
+        rec = _recorded_cwd(cand)
+        if rec and _contains(rec, cwd):
+            best, best_len, best_cwd = cand, len(cand.name), rec
+    if best:
+        print(f"no history for {cwd}; using parent project {best_cwd}", file=sys.stderr)
     return best
+
+
+def _recorded_cwd(d: Path) -> str | None:
+    """The directory this folder's sessions ran in, as the transcripts record it."""
+    for f in transcripts(d):
+        try:
+            with f.open(encoding="utf-8", errors="ignore") as fh:
+                for _, line in zip(range(50), fh):
+                    try:
+                        e = json.loads(line)
+                    except ValueError:
+                        continue
+                    if isinstance(e, dict) and e.get("cwd"):
+                        return e["cwd"]
+        except OSError:
+            continue
+    return None
+
+
+def _contains(parent: str, child: Path) -> bool:
+    p = os.path.normcase(os.path.realpath(parent))
+    c = os.path.normcase(str(child))
+    try:
+        return os.path.commonpath([p, c]) == p
+    except ValueError:  # different drives
+        return False
 
 
 def _text(entry: dict) -> str:

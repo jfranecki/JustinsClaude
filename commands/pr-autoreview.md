@@ -37,7 +37,7 @@ This routine uses the Workflow tool for the parallel fan-outs. That is intended 
 
 ## Step 2 — Discover scope (idempotent)
 
-Run this discovery script. It selects open + non-draft + not-mine PRs, drops any that already carry a review from ME, builds the Phase-3 same-base overlap map, applies MAX_PER_RUN (oldest first), and writes the Workflow args to `/tmp/pr_auto_targets.json`.
+Run this discovery script. It selects open + non-draft + not-mine PRs, drops any whose current head commit ME has already reviewed, builds the Phase-3 same-base overlap map, applies MAX_PER_RUN (oldest first), and writes the Workflow args to `/tmp/pr_auto_targets.json`.
 
 ```bash
 cd <MAIN>
@@ -49,11 +49,17 @@ token=sys.argv[1]
 ME="{{GITHUB_USERNAME}}"; REPO="{{GITHUB_REPO}}"; MAX_PER_RUN=15
 allopen=json.load(open("/tmp/pr_auto_allopen.json"))
 cands=[p for p in allopen if not p["isDraft"] and (p.get("author") or {}).get("login")!=ME]
-def my_latest_review(n):
-    url=f"https://api.github.com/repos/{REPO}/pulls/{n}/reviews?per_page=100"
+def get_json(url):
     req=urllib.request.Request(url, headers={"Authorization":f"Bearer {token}","Accept":"application/vnd.github+json","User-Agent":"pr-autoreview"})
+    with urllib.request.urlopen(req, timeout=25) as r: return json.load(r)
+def my_latest_review(n):
     try:
-        with urllib.request.urlopen(req, timeout=25) as r: data=json.load(r)
+        data=[]; page=1
+        while True:   # reviews come oldest first: read every page, or mine[-1] isn't my latest on a busy PR
+            batch=get_json(f"https://api.github.com/repos/{REPO}/pulls/{n}/reviews?per_page=100&page={page}")
+            data+=batch
+            if len(batch)<100: break
+            page+=1
         mine=[rv for rv in data if (rv.get("user") or {}).get("login")==ME]
         if not mine: return n, None
         last=mine[-1]
@@ -68,21 +74,19 @@ def head_moved(p):
     if info is None: return True                          # never reviewed
     if info.get("commit_id")=="__ERROR__": return False   # API error -> skip this sweep
     return info.get("commit_id") != p.get("headRefOid")   # head differs from my last-reviewed commit
-def last_commit_after_my_review(n):
-    # Guard against rebase/dismiss artifacts: only re-review if there's a commit dated AFTER my last review.
-    info=revmap.get(n)
+def head_commit_after_my_review(p):
+    # Guard against rebase/dismiss artifacts: only re-review if the head commit is dated AFTER my last review.
+    # Fetch the head commit itself; the PR's commit list pages oldest first and hides the newest past 100 commits.
+    info=revmap.get(p["number"])
     if info is None: return True
     my_when=info.get("submitted_at")
     try:
-        url=f"https://api.github.com/repos/{REPO}/pulls/{n}/commits?per_page=100"
-        req=urllib.request.Request(url, headers={"Authorization":f"Bearer {token}","Accept":"application/vnd.github+json","User-Agent":"pr-autoreview"})
-        with urllib.request.urlopen(req, timeout=25) as r: commits=json.load(r)
-        lc=commits[-1]["commit"]["committer"]["date"] if commits else None
+        lc=get_json(f"https://api.github.com/repos/{REPO}/commits/{p['headRefOid']}")["commit"]["committer"]["date"]
         return bool(lc and my_when and lc > my_when)
     except Exception:
         return False
 flagged=[p for p in cands if head_moved(p)]
-todo=[p for p in flagged if (revmap.get(p["number"]) is None or last_commit_after_my_review(p["number"]))]  # never-reviewed, or genuinely updated
+todo=[p for p in flagged if (revmap.get(p["number"]) is None or head_commit_after_my_review(p))]  # never-reviewed, or genuinely updated
 todo.sort(key=lambda p: p.get("createdAt") or "")          # oldest first
 deferred=[p["number"] for p in todo[MAX_PER_RUN:]]
 todo=todo[:MAX_PER_RUN]
