@@ -92,44 +92,49 @@ static class Chime
     // because that is what it turns into. When in doubt these lean towards "server": ringing a little early
     // is a smaller mistake than never ringing at all.
     // Your own additions: "runsUntilStopped" in chime.json. Your own exceptions: "keepsWorking".
+    // Naming a tool is not running it: "pip install uvicorn" ends. The guard looks back within one command
+    // only, so "pip install -r requirements.txt && uvicorn app:app" is still a server.
+    const string NotInstalling = @"(?<!\b(install|add|uninstall|remove|download)\s+([^\s;&|]+\s+)*)";
+
     static readonly string[] RunsUntilStopped =
     {
-        @"\b(npm|pnpm|yarn|bun)\b[^;&|]*\s(dev|start|serve|preview|watch|storybook)(:[\w-]+)?(\s|$)",
+        @"\b(npm|pnpm|yarn|bun)\b(?!\s+(install|add|i|ci|uninstall|remove|rm|un)\b)[^;&|]*\s(dev|start|serve|preview|watch|storybook)(:[\w-]+)?(\s|$)",
         @"\b(turbo|nx|lerna)\s+(run\s+)?(dev|serve|start|watch)\b",
-        @"\bserve\b",
+        NotInstalling + @"\bserve\b",
         @"\brunserver\b",
         @"\b(dev|web)[-_]?server\b",
-        @"\bserver\.(js|mjs|cjs|ts|py|rb)\b",
+        @"\b(node|deno|bun|tsx|ts-node|python[\d.]*|py|ruby)(\.exe)?\s+(run\s+)?(-\S+\s+)*(\S*[\\/])?server\.(js|mjs|cjs|ts|py|rb)\b",
         @"\bhttp\.server\b",
-        @"\b(http-server|live-server|browser-sync|nodemon|watchexec|entr)\b",
+        NotInstalling + @"\b(http-server|live-server|browser-sync|nodemon|watchexec|entr)\b",
         @"\bvite(\s+(dev|serve|preview))?\s*($|[;&|]|--)",
         @"\b(next|nuxt|astro|expo|react-scripts|storybook)\s+(dev|start|preview)\b",
         @"\bgatsby\s+develop\b",
-        @"\b(uvicorn|gunicorn|hypercorn|daphne)\b",
+        NotInstalling + @"\b(uvicorn|gunicorn|hypercorn|daphne)\b",
         @"\bflask\s+(-\S+\s+(\S+\s+)?)*run\b",
         @"\b(streamlit|chainlit)\s+run\b",
         @"\bgradio\s+\S+\.py\b",
         @"\bjupyter\s+(lab|notebook|server)\b",
-        @"\btensorboard\b",
-        @"\bcelery\b.*\b(worker|beat)\b",
+        NotInstalling + @"\btensorboard\b",
+        @"\bcelery\b[^;&|]*\s(worker|beat)\b",
         @"\brails\s+(s|server)\b",
         @"\bphp\s+-S\b",
         @"\bhugo\s+server\b",
         @"\bphx\.server\b",
         @"\b(dotnet|cargo|tsx)\s+watch\b",
         @"\s--watch(\s|=|$)",
-        @"\btsc\b.*\s-w\b",
+        @"\btsc\b[^;&|]*\s-w\b",
         @"\btail\b[^;&|]*\s(-[a-z0-9]*f|--follow)\b",
-        @"\bGet-Content\b.*\s-Wait\b",
-        @"\b(logs|journalctl)\b.*\s(-f|--follow)\b",
-        @"\bdocker[\s-]compose\b.*\bup\b(?!.*\s(-d|--detach)\b)",
-        @"\b(port-forward|ngrok)\b",
+        @"\bGet-Content\b[^;&|]*\s-Wait\b",
+        @"\slogs\b[^;&|]*\s(-f|--follow)\b",
+        @"\bjournalctl\b[^;&|]*\s(-f|--follow)\b",
+        @"\bdocker[\s-]compose\b[^;&|]*\sup\b(?![^;&|]*\s(-d|--detach)\b)",
+        NotInstalling + @"\b(port-forward|ngrok)\b",
         @"\bcloudflared\s+tunnel\b",
-        @"\b(redis-server|mongod|mysqld)\b",
+        NotInstalling + @"\b(redis-server|mongod|mysqld)\b",
         @"\bcaddy\s+run\b",
         @"\bComfyUI[\\/]main\.py\b",
         @"\bwebui(-user)?\.(sh|bat)\b",
-        @"\b(llama-server|koboldcpp)\b",
+        NotInstalling + @"\b(llama-server|koboldcpp)\b",
     };
 
     // Stop also fires when the main loop parks while its own background work is still running: an agent, a

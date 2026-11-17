@@ -217,13 +217,14 @@ ask    quiet, already chimed for this a moment ago  session 5b6a7c8d  in D:\work
   `settings.json`, and start a new Claude Code session.
 - **`no such sound: ...` in the log.** `pack` or a `cues` entry names a file that isn't in
   `soundsDir`.
-- **Every line in the log says `done`, even for questions.** Your Claude Code isn't passing
-  the hook's `args`. Put the cue in the command instead:
-  `"command": "\"C:\\Users\\<you>\\.claude\\hooks\\chime\\chime.exe\" ask"`.
+- **Every line in the log says `done`, even for questions.** The cue isn't reaching the
+  program, which falls back to `done`. Check that each hook entry in `settings.json` has its
+  own `args`: `["ask"]` on the two question hooks, `["fail"]` on `StopFailure`.
 - **`done` plays while a render is still going.** Run that command through `judge`. If it
   says `rings`, add a `keepsWorking` pattern. If the log line for that stop has no
-  `left running`, your Claude Code didn't list its background work for the hook (older
-  versions don't), and the chime can't know.
+  `left running`, Claude Code listed no background work for that stop, and the chime can only
+  judge what it is told about: a job queued on a server with nothing waiting on it is
+  invisible to it.
 - **`done` never plays in a session with a server up.** `judge` the server's command, and if
   it says `quiet`, add a `runsUntilStopped` pattern. A monitor left watching the server keeps
   it quiet too: the log line says `(monitor)`, and removing `monitor` from `quietWhile` stops
