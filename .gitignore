@@ -1,1 +1,4 @@
 .DS_Store
+# built or written in place by chime-setup
+chime-setup/chime.exe
+chime-setup/chime.log
