@@ -1,6 +1,6 @@
 # Claude Commands
 
-A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, a state-of-the-project coldstart brief that catches you up on where past sessions left off, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, two ways to have Claude read its answers aloud (plus a third, as [Cave Johnson](#cave---brief--medium--detailed-direction)), and a plain-English rewrite powered by a local LLM — plus an [orchestrator mode](#orchestrator-framework) that keeps long sessions coherent by delegating the heavy lifting, and a [library of portable engineering memories](#memories) any coding agent can ingest.
+A collection of battle-tested [Claude Code](https://claude.com/claude-code) slash commands: deep codebase onboarding, a state-of-the-project coldstart brief that catches you up on where past sessions left off, rigorous PR review (manual and fully automated), a safe end-of-session close-out, a read-only Slack briefing, two ways to have Claude read its answers aloud (plus a third, as [Cave Johnson](#cave---brief--medium--detailed-direction)), and a plain-English rewrite powered by a local LLM — plus an [orchestrator mode](#orchestrator-framework) that keeps long sessions coherent by delegating the heavy lifting, a [library of portable engineering memories](#memories) any coding agent can ingest, and a [chime](#setting-up-the-chime) that plays a sound when a session needs you.
 
 The files in `commands/` and `skills/` are **templates** — they contain `{{PLACEHOLDER}}` tokens for everything specific to you (GitHub username, repos, Slack channels, local paths). Nothing here assumes a particular company or codebase. The bundled `/get-started` installer interviews you, verifies your credentials, fills in the templates, and installs working commands into `~/.claude/`.
 
@@ -187,6 +187,14 @@ A four-row status line for Claude Code: context and rate-limit gauges with reset
 
 It copies the script into `~/.claude/`, finds a real Python 3 (on Windows, skipping the Microsoft Store stub), merges the `statusLine` block into your settings without touching the rest, and verifies the output with a sample payload. The effort level is the live `effort.level` Claude Code sends, falling back to `effortLevel` in your settings, and `?` if neither is set. Details: **[`statusline-setup/STATUSLINE_SETUP.md`](statusline-setup/STATUSLINE_SETUP.md)**.
 
+## Setting up the chime
+
+A short sound when a Claude Code session needs you: one cue when Claude has finished, one when it asks a question or needs a permission, one when a turn dies on an API error. It's a small Windows program built from a single C# file, **[`chime-setup/chime.cs`](chime-setup/chime.cs)**, with the compiler that ships with Windows, plus four hook entries in `~/.claude/settings.json`. The runbook is agent-executable like the others:
+
+> Read chime-setup/CHIME_SETUP.md and perform the setup it describes.
+
+The part that takes judgment is the "finished" cue, because Claude Code reports a stop every time the main loop goes idle. The chime stays quiet while Claude is still working by itself (background agents, a workflow, a scheduled wakeup, a render or test run in a background shell) and plays at the stop after that. It doesn't wait for anything that runs until you stop it, such as a dev server, a file watcher, or a log tail, which it tells apart by the command line. Every decision is written to a log, and both lists of patterns can be extended in `chime.json`. Windows only. The sounds are from [UI SFX](https://uisfx.com), public domain under CC0. Details: **[`chime-setup/CHIME_SETUP.md`](chime-setup/CHIME_SETUP.md)**.
+
 ## Repo layout
 
 ```
@@ -200,6 +208,7 @@ workflows/       Workflow-tool scripts used by /pr-autoreview (installed to ~/.c
 kokoro-setup/    agent-executable Kokoro runbook + the speak.py wrapper for /speak
 ollama-setup/    agent-executable ollama runbook + the claudish.sh wrapper for /claudish
 statusline-setup/  agent-executable runbook + the statusline.py script for the four-row status line
+chime-setup/     agent-executable runbook + chime.cs, its build script, settings and sounds (Windows)
 .claude/commands/get-started.md   the installer, available as /get-started when you open Claude Code in this repo
 ```
 

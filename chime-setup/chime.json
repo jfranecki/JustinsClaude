@@ -1,0 +1,14 @@
+{
+  "soundsDir": "",
+  "pack": "minimal",
+  "cues": {
+    "done": "complete",
+    "ask": "notification",
+    "fail": "error"
+  },
+  "volume": 100,
+  "quietWhileAgentsWork": true,
+  "quietWhile": ["subagent", "workflow", "teammate", "cloud session", "shell", "monitor", "scheduled wakeup"],
+  "runsUntilStopped": [],
+  "keepsWorking": []
+}
